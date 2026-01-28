@@ -24,10 +24,8 @@ export function SportMegaMenu() {
       <DropdownMenuContent align="end" className="w-56">
         {SPORTS.map((s) => (
           <DropdownMenuItem key={s.key} asChild>
-            <Link href={`/sport/${s.key}/scores`}>
-              <a data-testid={`link-sport-${s.key}`} className="w-full">
-                {s.label}
-              </a>
+            <Link href={`/sport/${s.key}/scores`} data-testid={`link-sport-${s.key}`} className="w-full">
+              {s.label}
             </Link>
           </DropdownMenuItem>
         ))}

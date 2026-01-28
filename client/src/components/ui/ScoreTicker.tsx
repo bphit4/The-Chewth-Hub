@@ -23,27 +23,40 @@ export function ScoreTicker() {
         const leagues = ['nfl', 'nba', 'mlb', 'college-football', 'mma'];
         const results = await Promise.all(
           leagues.map(async (league) => {
-            const path = league === 'college-football'
-              ? 'football/college-football'
-              : league === 'nfl'
-                ? 'football/nfl'
-                : league === 'nba'
-                  ? 'basketball/nba'
-                  : league === 'mlb'
-                    ? 'baseball/mlb'
-                    : 'mma/ufc';
+            const path = league === "college-football"
+              ? "football/college-football"
+              : league === "nfl"
+                ? "football/nfl"
+                : league === "nba"
+                  ? "basketball/nba"
+                  : league === "mlb"
+                    ? "baseball/mlb"
+                    : "mma/ufc";
             const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`);
             const data = await res.json();
-            return data.events.map((event: any) => ({
-              id: event.id,
-              league: league === 'college-football' ? 'NCAAF' : league === 'mma' ? 'UFC' : league.toUpperCase(),
-              status: event.status.type.shortDetail,
-              homeTeam: event.competitions[0].competitors[0].team.abbreviation,
-              homeScore: parseInt(event.competitions[0].competitors[0].score),
-              awayTeam: event.competitions[0].competitors[1].team.abbreviation,
-              awayScore: parseInt(event.competitions[0].competitors[1].score),
-              time: event.status.type.shortDetail
-            }));
+
+            const events = Array.isArray(data?.events) ? data.events : [];
+            return events.map((event: any) => {
+              const comp = event?.competitions?.[0];
+              const home = comp?.competitors?.find((c: any) => c.homeAway === "home") ?? comp?.competitors?.[0];
+              const away = comp?.competitors?.find((c: any) => c.homeAway === "away") ?? comp?.competitors?.[1];
+
+              const toScore = (v: any) => {
+                const n = Number(v);
+                return Number.isFinite(n) ? n : undefined;
+              };
+
+              return {
+                id: String(event.id),
+                league: league === "college-football" ? "NCAAF" : league === "mma" ? "UFC" : league.toUpperCase(),
+                status: event?.status?.type?.shortDetail ?? "",
+                homeTeam: home?.team?.abbreviation ?? "HOME",
+                homeScore: toScore(home?.score),
+                awayTeam: away?.team?.abbreviation ?? "AWAY",
+                awayScore: toScore(away?.score),
+                time: event?.status?.type?.shortDetail ?? "",
+              };
+            });
           })
         );
         

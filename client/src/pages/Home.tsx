@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ARTICLES, PODCAST_EPISODES } from "@/lib/mockData";
-import { ArrowRight, Play, Calendar, User } from "lucide-react";
+import { ArrowRight, Play, Calendar, User, TrendingUp, Flame, Swords } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
@@ -72,18 +72,24 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Latest News Section */}
+      {/* Live Feed / Headlines */}
       <section className="w-full py-16 md:py-24 bg-background">
         <div className="container px-4 md:px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between mb-12">
-            <h2 className="text-3xl font-heading font-bold tracking-tight md:text-5xl uppercase italic text-secondary">
-              Latest <span className="text-primary-foreground bg-primary px-2">Headlines</span>
-            </h2>
-            <Link href="/news">
-              <Button variant="link" className="text-primary font-bold uppercase tracking-widest mt-4 md:mt-0 group">
-                View All News <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-6">
+            <div>
+              <h2 className="text-3xl font-heading font-bold tracking-tight md:text-5xl uppercase italic text-secondary">
+                Live <span className="text-primary-foreground bg-primary px-2">Feed</span>
+              </h2>
+              <p className="mt-3 text-muted-foreground max-w-2xl">
+                ESPN-style streams: quick jump into a sport, then browse Scores, News, Standings, Stats and more.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/sport/nfl/scores"><Button data-testid="button-jump-nfl" className="gap-2"><Swords className="h-4 w-4" /> NFL</Button></Link>
+              <Link href="/sport/ncaaf/scores"><Button data-testid="button-jump-ncaaf" variant="outline" className="gap-2"><Flame className="h-4 w-4" /> CFB</Button></Link>
+              <Link href="/sport/nba/scores"><Button data-testid="button-jump-nba" variant="outline" className="gap-2"><TrendingUp className="h-4 w-4" /> NBA</Button></Link>
+              <Link href="/news"><Button data-testid="button-jump-news" variant="link" className="text-primary font-bold uppercase tracking-widest group">All Headlines <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" /></Button></Link>
+            </div>
           </div>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">

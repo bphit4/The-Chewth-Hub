@@ -17,16 +17,16 @@ export function SportSubnav({ sportKey }: { sportKey: EspnSportKey }) {
             const href = t.href(sportKey);
             const active = location === href;
             return (
-              <Link key={t.key} href={href}>
-                <a
-                  data-testid={`link-sporttab-${sportKey}-${t.key}`}
-                  className={cn(
-                    "whitespace-nowrap text-sm font-bold uppercase tracking-wider transition-colors",
-                    active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {t.label}
-                </a>
+              <Link
+                key={t.key}
+                href={href}
+                data-testid={`link-sporttab-${sportKey}-${t.key}`}
+                className={cn(
+                  "whitespace-nowrap text-sm font-bold uppercase tracking-wider transition-colors",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {t.label}
               </Link>
             );
           })}

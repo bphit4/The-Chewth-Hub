@@ -18,19 +18,19 @@ export function Footer() {
           <div>
             <h4 className="font-heading text-lg font-semibold mb-4 uppercase">Sports</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/news?cat=NFL"><a className="hover:text-primary">NFL</a></Link></li>
-              <li><Link href="/news?cat=NBA"><a className="hover:text-primary">NBA</a></Link></li>
-              <li><Link href="/news?cat=CFB"><a className="hover:text-primary">College Football</a></Link></li>
-              <li><Link href="/news?cat=UFC"><a className="hover:text-primary">UFC</a></Link></li>
+              <li><Link href="/news?cat=NFL" className="hover:text-primary" data-testid="link-footer-nfl">NFL</Link></li>
+              <li><Link href="/news?cat=NBA" className="hover:text-primary" data-testid="link-footer-nba">NBA</Link></li>
+              <li><Link href="/news?cat=CFB" className="hover:text-primary" data-testid="link-footer-cfb">College Football</Link></li>
+              <li><Link href="/news?cat=UFC" className="hover:text-primary" data-testid="link-footer-ufc">UFC</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-heading text-lg font-semibold mb-4 uppercase">Company</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/about"><a className="hover:text-primary">About Us</a></Link></li>
-              <li><Link href="/contact"><a className="hover:text-primary">Contact</a></Link></li>
-              <li><Link href="/privacy"><a className="hover:text-primary">Privacy Policy</a></Link></li>
+              <li><Link href="/about" className="hover:text-primary" data-testid="link-footer-about">About Us</Link></li>
+              <li><Link href="/contact" className="hover:text-primary" data-testid="link-footer-contact">Contact</Link></li>
+              <li><Link href="/privacy" className="hover:text-primary" data-testid="link-footer-privacy">Privacy Policy</Link></li>
             </ul>
           </div>
 
