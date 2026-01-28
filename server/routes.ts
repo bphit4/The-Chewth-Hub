@@ -210,5 +210,42 @@ export async function registerRoutes(
     }
   });
 
+  // ESPN Proxy Routes (for game summaries, team data - avoids CORS issues)
+  app.get("/api/espn/game/:sport/:eventId", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnGameSummary(req.params.sport, req.params.eventId);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/espn/team/:sport/:teamId", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnTeam(req.params.sport, req.params.teamId);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/espn/team/:sport/:teamId/schedule", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnTeamSchedule(req.params.sport, req.params.teamId);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/espn/team/:sport/:teamId/roster", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnTeamRoster(req.params.sport, req.params.teamId);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return httpServer;
 }

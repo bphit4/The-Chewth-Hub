@@ -15,36 +15,52 @@ function isSportKey(v: any): v is EspnSportKey {
 }
 
 function normalizeLeaderCategories(data: any) {
-  const categories = data?.categories ?? data?.leaders ?? [];
+  // Handle multiple possible data structures from ESPN API
+  let categories: any[] = [];
+  
+  // Try different paths to find categories array
+  if (Array.isArray(data?.categories)) {
+    categories = data.categories;
+  } else if (Array.isArray(data?.leaders)) {
+    categories = data.leaders;
+  } else if (data?.categories?.categories && Array.isArray(data.categories.categories)) {
+    categories = data.categories.categories;
+  } else if (data?.id && data?.categories) {
+    // Data is a single category object
+    const innerCats = data.categories;
+    if (Array.isArray(innerCats)) {
+      categories = innerCats;
+    }
+  }
   
   // Ensure categories is an array
   if (!Array.isArray(categories)) {
-    console.warn("Categories is not an array:", categories);
+    console.warn("Categories is not an array:", typeof categories);
     return [];
   }
   
   return categories.map((c: any) => {
-    const leaders = c?.leaders ?? [];
+    const leaders = c?.leaders ?? c?.athletes ?? [];
     return {
       name: c?.displayName ?? c?.name ?? "Leaders",
-      shortName: c?.shortDisplayName ?? c?.shortName,
-      leaders: Array.isArray(leaders) ? leaders.map((l: any, idx: number) => {
-        const athlete = l?.athlete ?? l?.athletes?.[0] ?? {};
+      shortName: c?.shortDisplayName ?? c?.shortName ?? c?.abbreviation,
+      leaders: Array.isArray(leaders) ? leaders.slice(0, 20).map((l: any, idx: number) => {
+        const athlete = l?.athlete ?? l?.athletes?.[0] ?? l ?? {};
         const team = l?.team ?? athlete?.team ?? {};
         const stat = l?.statValue ?? l?.displayValue ?? l?.value;
         const val = l?.displayValue ?? (stat != null ? String(stat) : "");
         return {
           id: String(l?.id ?? athlete?.id ?? `${idx}`),
-          athleteName: athlete?.displayName ?? athlete?.fullName ?? "",
+          athleteName: athlete?.displayName ?? athlete?.fullName ?? athlete?.name ?? "",
           teamAbbr: team?.abbreviation ?? "",
-          teamName: team?.displayName ?? "",
-          headshot: athlete?.headshot?.href,
+          teamName: team?.displayName ?? team?.name ?? "",
+          headshot: athlete?.headshot?.href ?? athlete?.headshot,
           value: val,
           rank: l?.rank != null ? String(l.rank) : String(idx + 1),
         };
       }) : [],
     };
-  });
+  }).filter((c: any) => c.leaders.length > 0);
 }
 
 export default function SportStats() {

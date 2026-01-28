@@ -101,7 +101,7 @@ export default function SportTeams() {
             ) : (
               <Link
                 key={t.id}
-                href={`/sport/${sportKey}/teams#${t.id}`}
+                href={`/sport/${sportKey}/team/${t.id}`}
                 className="block"
                 data-testid={`card-team-${t.id}`}
               >

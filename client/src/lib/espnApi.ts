@@ -12,6 +12,10 @@ export function espnTeamsUrl(apiPath: EspnApiSportPath) {
   return espnSiteV2(`sports/${apiPath}/teams`);
 }
 
+export function espnTeamUrl(apiPath: EspnApiSportPath, teamId: string) {
+  return espnSiteV2(`sports/${apiPath}/teams/${teamId}`);
+}
+
 export function espnNewsUrl(apiPath: EspnApiSportPath, limit = 30) {
   return espnSiteV2(`sports/${apiPath}/news?limit=${limit}`);
 }

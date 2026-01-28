@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ArrowLeft, ExternalLink } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
-import { espnSummaryUrl, getSportConfig, SPORTS, type EspnSportKey } from "@/lib/espn";
+import { getSportConfig, SPORTS, type EspnSportKey } from "@/lib/espn";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
@@ -31,7 +31,8 @@ export default function GameDetail() {
       try {
         setError(null);
         setLoading(true);
-        const res = await fetch(espnSummaryUrl(cfg.apiPath, eventId));
+        // Use backend proxy to avoid CORS issues
+        const res = await fetch(`/api/espn/game/${sportKey}/${eventId}`);
         if (!res.ok) throw new Error(`Summary fetch failed (${res.status})`);
         const json = await res.json();
         if (mounted) setData(json);
@@ -133,29 +134,90 @@ export default function GameDetail() {
                   </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="rounded-xl border border-border p-5 bg-card">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="font-heading font-bold uppercase">Team Stats</div>
-                      <Badge className="bg-primary text-primary-foreground uppercase font-black tracking-widest text-[10px] rounded-sm">Auto</Badge>
+                <div className="space-y-6">
+                  {/* Team Statistics Comparison */}
+                  {data?.boxscore?.teams && (
+                    <div className="rounded-xl border border-border p-5 bg-card">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="font-heading font-bold uppercase">Team Statistics</div>
+                        <Badge className="bg-primary text-primary-foreground uppercase font-black tracking-widest text-[10px] rounded-sm">Box Score</Badge>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase tracking-widest text-muted-foreground border-b border-border">
+                              <th className="text-left py-2 px-3">Stat</th>
+                              <th className="text-right py-2 px-3">{header.away?.team?.abbreviation || "Away"}</th>
+                              <th className="text-right py-2 px-3">{header.home?.team?.abbreviation || "Home"}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(data.boxscore.teams[0]?.statistics ?? []).slice(0, 12).map((stat: any, idx: number) => {
+                              const awayStat = data.boxscore.teams.find((t: any) => t.homeAway === "away")?.statistics?.[idx];
+                              const homeStat = data.boxscore.teams.find((t: any) => t.homeAway === "home")?.statistics?.[idx];
+                              return (
+                                <tr key={idx} className="border-b border-border/50 hover:bg-secondary/5">
+                                  <td className="py-2 px-3 font-medium">{stat?.label || stat?.name || `Stat ${idx + 1}`}</td>
+                                  <td className="py-2 px-3 text-right font-mono">{awayStat?.displayValue ?? "—"}</td>
+                                  <td className="py-2 px-3 text-right font-mono">{homeStat?.displayValue ?? "—"}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      This view is wired to ESPN's summary endpoint. Next, we can map specific stat tables (passing/rushing/receiving, etc.) per sport.
-                    </div>
-                    <pre className="mt-4 max-h-64 overflow-auto rounded-lg bg-secondary/5 p-3 text-[11px] leading-snug">
-{JSON.stringify(data?.boxscore?.teams?.[0]?.statistics?.slice?.(0, 8) ?? [], null, 2)}
-                    </pre>
-                  </div>
+                  )}
 
-                  <div className="rounded-xl border border-border p-5 bg-card">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="font-heading font-bold uppercase">Leaders</div>
-                      <div className="text-xs text-muted-foreground">Preview</div>
+                  {/* Game Leaders */}
+                  {data?.leaders && data.leaders.length > 0 && (
+                    <div className="rounded-xl border border-border p-5 bg-card">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="font-heading font-bold uppercase">Game Leaders</div>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {data.leaders.slice(0, 6).map((leader: any, idx: number) => (
+                          <div key={idx} className="p-3 rounded-lg border border-border bg-secondary/5">
+                            <div className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                              {leader?.displayName || leader?.name || "Leader"}
+                            </div>
+                            {leader?.leaders?.slice(0, 2).map((l: any, li: number) => {
+                              const athlete = l?.athlete ?? {};
+                              return (
+                                <div key={li} className="flex items-center justify-between py-1">
+                                  <div className="flex items-center gap-2">
+                                    {athlete?.headshot?.href && (
+                                      <img src={athlete.headshot.href} alt="" className="h-6 w-6 rounded-full object-cover" />
+                                    )}
+                                    <span className="text-sm font-medium truncate">{athlete?.displayName ?? "Player"}</span>
+                                  </div>
+                                  <span className="font-mono font-bold text-primary">{l?.displayValue ?? l?.value ?? "—"}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <pre className="max-h-64 overflow-auto rounded-lg bg-secondary/5 p-3 text-[11px] leading-snug">
-{JSON.stringify(data?.leaders?.slice?.(0, 2) ?? [], null, 2)}
-                    </pre>
-                  </div>
+                  )}
+
+                  {/* Scoring Summary */}
+                  {data?.scoringPlays && data.scoringPlays.length > 0 && (
+                    <div className="rounded-xl border border-border p-5 bg-card">
+                      <div className="font-heading font-bold uppercase mb-4">Scoring Summary</div>
+                      <div className="space-y-2">
+                        {data.scoringPlays.slice(0, 10).map((play: any, idx: number) => (
+                          <div key={idx} className="p-3 rounded-lg border border-border/50 bg-secondary/5 text-sm">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold">{play?.team?.abbreviation || "Team"}</span>
+                              <Badge className="bg-secondary/20 text-xs">{play?.clock?.displayValue || play?.period?.displayValue || ""}</Badge>
+                            </div>
+                            <div className="text-muted-foreground">{play?.text || play?.type?.text || ""}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {header.link && (

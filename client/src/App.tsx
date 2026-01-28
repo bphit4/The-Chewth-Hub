@@ -25,6 +25,7 @@ import SportNews from "@/pages/SportNews";
 import SportOdds from "@/pages/SportOdds";
 import SportStats from "@/pages/SportStats";
 import SportRankings from "@/pages/SportRankings";
+import TeamDetail from "@/pages/TeamDetail";
 
 function Router() {
   const [location] = useLocation();
@@ -50,6 +51,7 @@ function Router() {
           <Route path="/sport/:sport/standings" component={SportStandings} />
           <Route path="/sport/:sport/stats" component={SportStats} />
           <Route path="/sport/:sport/teams" component={SportTeams} />
+          <Route path="/sport/:sport/team/:teamId" component={TeamDetail} />
           <Route path="/sport/:sport/schedule" component={SportSchedule} />
           <Route path="/sport/:sport/news" component={SportNews} />
           <Route path="/sport/:sport/odds" component={SportOdds} />
