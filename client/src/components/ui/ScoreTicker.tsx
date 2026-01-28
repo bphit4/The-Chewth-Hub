@@ -20,14 +20,23 @@ export function ScoreTicker() {
       try {
         // Using ESPN's public API endpoints for common leagues
         // These are public and don't require an API key
-        const leagues = ['nfl', 'nba', 'mlb', 'college-football'];
+        const leagues = ['nfl', 'nba', 'mlb', 'college-football', 'mma'];
         const results = await Promise.all(
           leagues.map(async (league) => {
-            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${league === 'college-football' ? 'football/college-football' : league === 'nfl' ? 'football/nfl' : league === 'nba' ? 'basketball/nba' : 'baseball/mlb'}/scoreboard`);
+            const path = league === 'college-football'
+              ? 'football/college-football'
+              : league === 'nfl'
+                ? 'football/nfl'
+                : league === 'nba'
+                  ? 'basketball/nba'
+                  : league === 'mlb'
+                    ? 'baseball/mlb'
+                    : 'mma/ufc';
+            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`);
             const data = await res.json();
             return data.events.map((event: any) => ({
               id: event.id,
-              league: league.toUpperCase(),
+              league: league === 'college-football' ? 'NCAAF' : league === 'mma' ? 'UFC' : league.toUpperCase(),
               status: event.status.type.shortDetail,
               homeTeam: event.competitions[0].competitors[0].team.abbreviation,
               homeScore: parseInt(event.competitions[0].competitors[0].score),
@@ -55,21 +64,26 @@ export function ScoreTicker() {
     <div className="w-full bg-secondary text-secondary-foreground overflow-hidden border-b border-white/10">
       <div className="flex whitespace-nowrap animate-marquee py-2 group hover:[animation-play-state:paused]">
         {[...scores, ...scores].map((score, i) => (
-          <div key={`${score.id}-${i}`} className="inline-flex items-center space-x-4 px-6 border-r border-white/10 text-sm">
-            <span className="font-bold text-primary text-[10px] tracking-tighter">{score.league}</span>
+          <a
+            key={`${score.id}-${i}`}
+            href={`/sport/${score.league === 'NCAAF' ? 'ncaaf' : score.league.toLowerCase()}/game/${score.id}`}
+            className="inline-flex items-center space-x-4 px-6 border-r border-white/10 text-sm hover:bg-white/5 transition-colors"
+            data-testid={`link-ticker-game-${score.id}`}
+          >
+            <span className="font-black text-primary text-[10px] tracking-widest">{score.league}</span>
             <div className="flex items-center space-x-2 font-mono">
-              <span className={cn(score.homeScore! > score.awayScore! ? "font-bold text-accent" : "text-muted-foreground")}>
-                {score.homeTeam} {score.homeScore}
+              <span className={cn((score.homeScore ?? 0) > (score.awayScore ?? 0) ? "font-black text-accent" : "text-muted-foreground")}>
+                {score.homeTeam} {score.homeScore ?? '-'}
               </span>
               <span className="text-muted-foreground/50 text-[10px]">-</span>
-              <span className={cn(score.awayScore! > score.homeScore! ? "font-bold text-accent" : "text-muted-foreground")}>
-                {score.awayTeam} {score.awayScore}
+              <span className={cn((score.awayScore ?? 0) > (score.homeScore ?? 0) ? "font-black text-accent" : "text-muted-foreground")}>
+                {score.awayTeam} {score.awayScore ?? '-'}
               </span>
             </div>
-            <span className="text-[10px] text-primary/80 font-bold uppercase">
+            <span className="text-[10px] text-primary/80 font-black uppercase">
               {score.status}
             </span>
-          </div>
+          </a>
         ))}
       </div>
     </div>

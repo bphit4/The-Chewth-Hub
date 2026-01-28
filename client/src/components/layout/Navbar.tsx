@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Menu, X, Mic, Trophy, Newspaper, User } from "lucide-react";
+import { SportMegaMenu } from "@/components/layout/SportMegaMenu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -28,10 +29,12 @@ export function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <div className="hidden md:flex md:items-center md:space-x-8">
+        <div className="hidden md:flex md:items-center md:space-x-6">
+          <SportMegaMenu />
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
               <a
+                data-testid={`link-nav-${item.label.toLowerCase()}`}
                 className={cn(
                   "text-sm font-medium transition-colors hover:text-primary uppercase tracking-wide",
                   location === item.href ? "text-primary font-bold" : "text-muted-foreground"
@@ -42,10 +45,12 @@ export function Navbar() {
             </Link>
           ))}
           <Link href="/admin">
-            <Button variant="ghost" size="icon" className="hover:text-primary">
+          <a data-testid="link-admin">
+            <Button data-testid="button-admin" variant="ghost" size="icon" className="hover:text-primary">
               <User className="h-5 w-5" />
             </Button>
-          </Link>
+          </a>
+        </Link>
         </div>
 
         {/* Mobile Menu Button */}
@@ -61,9 +66,24 @@ export function Navbar() {
       {isOpen && (
         <div className="md:hidden border-t border-border bg-background px-4 py-4 animate-in slide-in-from-top-5">
           <div className="flex flex-col space-y-4">
-            {navItems.map((item) => (
+            <Link href="/scores">
+              <a
+                data-testid="link-mobile-sports"
+                className={cn(
+                  "flex items-center space-x-2 text-lg font-medium transition-colors hover:text-primary",
+                  location === "/scores" ? "text-primary" : "text-foreground"
+                )}
+                onClick={() => setIsOpen(false)}
+              >
+                <Trophy className="h-5 w-5" />
+                <span>Sports Hub</span>
+              </a>
+            </Link>
+
+            {navItems.filter(i => i.href !== "/scores").map((item) => (
               <Link key={item.href} href={item.href}>
                 <a
+                  data-testid={`link-mobile-${item.label.toLowerCase()}`}
                   className={cn(
                     "flex items-center space-x-2 text-lg font-medium transition-colors hover:text-primary",
                     location === item.href ? "text-primary" : "text-foreground"
@@ -76,10 +96,10 @@ export function Navbar() {
               </Link>
             ))}
             <Link href="/admin">
-               <a className="flex items-center space-x-2 text-lg font-medium hover:text-primary" onClick={() => setIsOpen(false)}>
+              <a data-testid="link-mobile-admin" className="flex items-center space-x-2 text-lg font-medium hover:text-primary" onClick={() => setIsOpen(false)}>
                 <User className="h-5 w-5" />
                 <span>Admin Login</span>
-               </a>
+              </a>
             </Link>
           </div>
         </div>
