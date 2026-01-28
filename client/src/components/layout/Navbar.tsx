@@ -1,10 +1,17 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Menu, X, Mic, Trophy, Newspaper, User } from "lucide-react";
+import { Menu, X, Mic, Trophy, Newspaper, User, ChevronDown } from "lucide-react";
 import { SportMegaMenu } from "@/components/layout/SportMegaMenu";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { SPORTS } from "@/lib/espn";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,6 +57,38 @@ export function Navbar() {
               {item.label}
             </Link>
           ))}
+          
+          {/* Quick Sport Switcher */}
+          {location.startsWith("/sport/") && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="uppercase font-bold tracking-wider text-xs"
+                  data-testid="button-sport-switcher"
+                >
+                  <Trophy className="h-3.5 w-3.5 mr-1.5" />
+                  Switch Sport
+                  <ChevronDown className="h-3.5 w-3.5 ml-1.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {SPORTS.map((sport) => (
+                  <DropdownMenuItem key={sport.key} asChild>
+                    <Link
+                      href={`/sport/${sport.key}/scores`}
+                      className="cursor-pointer uppercase font-bold tracking-wide"
+                      data-testid={`dropdown-sport-${sport.key}`}
+                    >
+                      {sport.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
           <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
           <Link href="/admin" data-testid="link-admin">
             <Button data-testid="button-admin" variant="ghost" size="icon" className="hover:text-primary">

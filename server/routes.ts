@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import * as sportsdata from "./sportsdata";
+import * as normalizers from "./normalizers";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -12,8 +13,11 @@ export async function registerRoutes(
   // NFL
   app.get("/api/nfl/scores/:date", async (req, res, next) => {
     try {
-      const data = await sportsdata.getNFLScoresByDate(req.params.date);
-      res.json(data);
+      const rawData = await sportsdata.getNFLScoresByDate(req.params.date);
+      const normalized = Array.isArray(rawData) 
+        ? rawData.map(normalizers.normalizeNFLGame)
+        : [];
+      res.json(normalized);
     } catch (err) {
       next(err);
     }
@@ -49,8 +53,11 @@ export async function registerRoutes(
   // NBA
   app.get("/api/nba/scores/:date", async (req, res, next) => {
     try {
-      const data = await sportsdata.getNBAGamesByDate(req.params.date);
-      res.json(data);
+      const rawData = await sportsdata.getNBAGamesByDate(req.params.date);
+      const normalized = Array.isArray(rawData)
+        ? rawData.map(normalizers.normalizeNBAGame)
+        : [];
+      res.json(normalized);
     } catch (err) {
       next(err);
     }
@@ -86,8 +93,11 @@ export async function registerRoutes(
   // MLB
   app.get("/api/mlb/scores/:date", async (req, res, next) => {
     try {
-      const data = await sportsdata.getMLBGamesByDate(req.params.date);
-      res.json(data);
+      const rawData = await sportsdata.getMLBGamesByDate(req.params.date);
+      const normalized = Array.isArray(rawData)
+        ? rawData.map(normalizers.normalizeMLBGame)
+        : [];
+      res.json(normalized);
     } catch (err) {
       next(err);
     }
@@ -123,8 +133,11 @@ export async function registerRoutes(
   // CFB (College Football)
   app.get("/api/cfb/scores/:season/:week", async (req, res, next) => {
     try {
-      const data = await sportsdata.getCFBGamesByWeek(req.params.season, req.params.week);
-      res.json(data);
+      const rawData = await sportsdata.getCFBGamesByWeek(req.params.season, req.params.week);
+      const normalized = Array.isArray(rawData)
+        ? rawData.map(normalizers.normalizeCFBGame)
+        : [];
+      res.json(normalized);
     } catch (err) {
       next(err);
     }
@@ -160,8 +173,11 @@ export async function registerRoutes(
   // CBB (College Basketball)
   app.get("/api/cbb/scores/:date", async (req, res, next) => {
     try {
-      const data = await sportsdata.getCBBGamesByDate(req.params.date);
-      res.json(data);
+      const rawData = await sportsdata.getCBBGamesByDate(req.params.date);
+      const normalized = Array.isArray(rawData)
+        ? rawData.map(normalizers.normalizeCBBGame)
+        : [];
+      res.json(normalized);
     } catch (err) {
       next(err);
     }

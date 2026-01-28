@@ -1,12 +1,16 @@
 import { useRoute, Link } from "wouter";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertCircle, ChevronRight, CalendarIcon, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { cn } from "@/lib/utils";
 import { SPORTS, type EspnSportKey } from "@/lib/espn";
 import { useEspnScores } from "@/hooks/useEspnScores";
+import { format } from "date-fns";
 
 const sportKeys = SPORTS.map((s) => s.key);
 
@@ -18,10 +22,23 @@ export default function SportScores() {
   const [match, params] = useRoute("/sport/:sport/scores");
   const sport = params?.sport;
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const { cfg, games, loading, error } = useEspnScores(sportKey);
+  const { cfg, games, loading, error } = useEspnScores(sportKey, selectedDate);
 
   if (!match || !cfg) return null;
+
+  const handlePrevDay = () => {
+    const prev = new Date(selectedDate);
+    prev.setDate(prev.getDate() - 1);
+    setSelectedDate(prev);
+  };
+
+  const handleNextDay = () => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    setSelectedDate(next);
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -43,6 +60,64 @@ export default function SportScores() {
       <SportSubnav sportKey={sportKey} />
 
       <div className="container px-4 md:px-6 py-8">
+        {/* Date Picker Section */}
+        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handlePrevDay}
+              data-testid="button-prev-day"
+              className="hover:bg-primary/10"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal uppercase font-bold tracking-wider",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                  data-testid="button-date-picker"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleNextDay}
+              data-testid="button-next-day"
+              className="hover:bg-primary/10"
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedDate(new Date())}
+            className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
+            data-testid="button-today"
+          >
+            Today
+          </Button>
+        </div>
         {error && (
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm text-destructive font-bold">
