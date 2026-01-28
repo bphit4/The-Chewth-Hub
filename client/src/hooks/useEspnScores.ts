@@ -17,10 +17,22 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date): Promi
   };
   
   const apiSport = sportMap[sportKey];
-  const endpoint = `/api/${apiSport}/scores/${dateStr}`;
+  
+  // CFB uses season/week format, others use date
+  let endpoint: string;
+  if (sportKey === "ncaaf") {
+    // For CFB, use current season and week 1 for now (TODO: calculate proper week)
+    const season = date.getFullYear().toString();
+    endpoint = `/api/cfb/scores/${season}/1`;
+  } else {
+    endpoint = `/api/${apiSport}/scores/${dateStr}`;
+  }
   
   const res = await fetch(endpoint);
-  if (!res.ok) throw new Error(`Backend API error: ${res.status}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Backend API error: ${res.status} - ${text}`);
+  }
   
   return await res.json();
 }

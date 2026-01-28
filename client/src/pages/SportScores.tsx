@@ -133,7 +133,7 @@ export default function SportScores() {
           {(loading ? Array(9).fill(0) : games).map((g: any, idx: number) =>
             loading ? (
               <Card key={idx} className="h-40 animate-pulse bg-card" />
-            ) : (
+            ) : !g || !g.away || !g.home ? null : (
               <Link key={g.id} href={`/sport/${sportKey}/game/${g.id}`} data-testid={`card-game-${g.id}`} className="block">
                 <Card className="bg-card border-l-4 border-l-primary p-5 hover:shadow-xl hover:shadow-primary/10 transition-all group relative overflow-hidden">
                   <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-accent/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -152,39 +152,39 @@ export default function SportScores() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {g.away.logo ? (
+                        {g.away?.logo ? (
                           <img src={g.away.logo} alt="" className="h-8 w-8 object-contain" />
                         ) : (
                           <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
-                            {g.away.abbr}
+                            {g.away?.abbr || "A"}
                           </div>
                         )}
                         <div>
-                          <div className="font-bold leading-tight">{g.away.name}</div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.away.abbr}</div>
+                          <div className="font-bold leading-tight">{g.away?.name || "Away"}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.away?.abbr || "AWAY"}</div>
                         </div>
                       </div>
-                      <div className={cn("font-mono text-3xl font-black", (g.away.score ?? 0) > (g.home.score ?? 0) ? "text-accent" : "text-foreground/70")}>
-                        {g.away.score ?? "-"}
+                      <div className={cn("font-mono text-3xl font-black", (g.away?.score ?? 0) > (g.home?.score ?? 0) ? "text-accent" : "text-foreground/70")}>
+                        {g.away?.score ?? "-"}
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {g.home.logo ? (
+                        {g.home?.logo ? (
                           <img src={g.home.logo} alt="" className="h-8 w-8 object-contain" />
                         ) : (
                           <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
-                            {g.home.abbr}
+                            {g.home?.abbr || "H"}
                           </div>
                         )}
                         <div>
-                          <div className="font-bold leading-tight">{g.home.name}</div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.home.abbr}</div>
+                          <div className="font-bold leading-tight">{g.home?.name || "Home"}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.home?.abbr || "HOME"}</div>
                         </div>
                       </div>
-                      <div className={cn("font-mono text-3xl font-black", (g.home.score ?? 0) > (g.away.score ?? 0) ? "text-accent" : "text-foreground/70")}>
-                        {g.home.score ?? "-"}
+                      <div className={cn("font-mono text-3xl font-black", (g.home?.score ?? 0) > (g.away?.score ?? 0) ? "text-accent" : "text-foreground/70")}>
+                        {g.home?.score ?? "-"}
                       </div>
                     </div>
                   </div>
