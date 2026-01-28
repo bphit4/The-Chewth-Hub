@@ -268,11 +268,22 @@ export async function registerRoutes(
     }
   });
 
+  // ESPN groups/conferences proxy
+  app.get("/api/espn/groups/:sport", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnGroups(req.params.sport);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // ESPN scoreboard proxy
   app.get("/api/espn/scoreboard/:sport", async (req, res, next) => {
     try {
       const date = req.query.dates as string | undefined;
-      const data = await sportsdata.getEspnScoreboard(req.params.sport, date);
+      const groups = req.query.groups as string | undefined;
+      const data = await sportsdata.getEspnScoreboard(req.params.sport, date, groups);
       res.json(data);
     } catch (err) {
       next(err);

@@ -20,6 +20,8 @@ function normalizeEspnScoreboard(data: any): ChewthGame[] {
         abbr: home?.team?.abbreviation ?? "",
         logo: home?.team?.logos?.[0]?.href ?? home?.team?.logo,
         score: parseInt(home?.score ?? "0", 10) || 0,
+        rank: home?.curatedRank?.current ?? home?.rank ?? undefined,
+        conferenceId: home?.team?.conferenceId,
       },
       away: {
         id: away?.team?.id ?? "",
@@ -27,16 +29,29 @@ function normalizeEspnScoreboard(data: any): ChewthGame[] {
         abbr: away?.team?.abbreviation ?? "",
         logo: away?.team?.logos?.[0]?.href ?? away?.team?.logo,
         score: parseInt(away?.score ?? "0", 10) || 0,
+        rank: away?.curatedRank?.current ?? away?.rank ?? undefined,
+        conferenceId: away?.team?.conferenceId,
       },
+      groups: event?.competitions?.[0]?.groups?.map((g: any) => g?.id) ?? [],
     };
   });
 }
 
-async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date): Promise<ChewthGame[]> {
-  // For college sports, use ESPN scoreboard (more reliable)
-  if (sportKey === "ncaaf" || sportKey === "ncaab") {
-    const dateStr = format(date, "yyyyMMdd");
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
+async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter?: string): Promise<ChewthGame[]> {
+  const dateStr = format(date, "yyyyMMdd");
+  
+  // For college sports with specific group filters
+  if ((sportKey === "ncaaf" || sportKey === "ncaab") && filter) {
+    let groupParam = "";
+    if (filter === "fbs") groupParam = "&groups=80";
+    else if (filter === "fcs") groupParam = "&groups=81";
+    else if (filter === "d1") groupParam = "&groups=50";
+    else if (filter.startsWith("conf-")) {
+      const confId = filter.replace("conf-", "");
+      groupParam = `&groups=${confId}`;
+    }
+    
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${groupParam}`);
     if (!res.ok) {
       throw new Error(`ESPN API error: ${res.status}`);
     }
@@ -44,8 +59,28 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date): Promi
     return normalizeEspnScoreboard(data);
   }
   
+  // For college sports without filter, use ESPN scoreboard (more reliable)
+  if (sportKey === "ncaaf" || sportKey === "ncaab") {
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
+    if (!res.ok) {
+      throw new Error(`ESPN API error: ${res.status}`);
+    }
+    const data = await res.json();
+    const games = normalizeEspnScoreboard(data);
+    
+    // Client-side filter for Top 25
+    if (filter === "top25") {
+      return games.filter(g => 
+        (g.home?.rank && g.home.rank <= 25) || 
+        (g.away?.rank && g.away.rank <= 25)
+      );
+    }
+    
+    return games;
+  }
+  
   // For pro sports, use SportsDataIO
-  const dateStr = format(date, "yyyy-MMM-dd").toUpperCase();
+  const formattedDate = format(date, "yyyy-MMM-dd").toUpperCase();
   const sportMap: Record<EspnSportKey, string> = {
     nfl: "nfl",
     nba: "nba",
@@ -56,13 +91,12 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date): Promi
   };
   
   const apiSport = sportMap[sportKey];
-  const endpoint = `/api/${apiSport}/scores/${dateStr}`;
+  const endpoint = `/api/${apiSport}/scores/${formattedDate}`;
   
   const res = await fetch(endpoint);
   if (!res.ok) {
     // Fallback to ESPN for any sport
-    const espnDateStr = format(date, "yyyyMMdd");
-    const espnRes = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${espnDateStr}`);
+    const espnRes = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
     if (espnRes.ok) {
       const data = await espnRes.json();
       return normalizeEspnScoreboard(data);
@@ -73,7 +107,7 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date): Promi
   return await res.json();
 }
 
-export function useEspnScores(sportKey: EspnSportKey, date?: Date) {
+export function useEspnScores(sportKey: EspnSportKey, date?: Date, filter?: string) {
   const cfg = getSportConfig(sportKey);
   const [games, setGames] = useState<ChewthGame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +122,7 @@ export function useEspnScores(sportKey: EspnSportKey, date?: Date) {
       if (!cfg) return;
       try {
         setError(null);
-        const data = await fetchScoresFromBackend(sportKey, currentDate);
+        const data = await fetchScoresFromBackend(sportKey, currentDate, filter);
         if (mounted) setGames(data);
       } catch (e: any) {
         if (mounted) setError(e?.message ?? "Failed to load scores");
@@ -105,7 +139,7 @@ export function useEspnScores(sportKey: EspnSportKey, date?: Date) {
       mounted = false;
       if (interval) window.clearInterval(interval);
     };
-  }, [sportKey, currentDate.toDateString()]);
+  }, [sportKey, currentDate.toDateString(), filter]);
 
   return useMemo(() => ({ cfg, games, loading, error }), [cfg, games, loading, error]);
 }

@@ -1,10 +1,11 @@
 import { useRoute, Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, ChevronRight, CalendarIcon, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { cn } from "@/lib/utils";
@@ -18,13 +19,107 @@ function isSportKey(v: any): v is EspnSportKey {
   return sportKeys.includes(v);
 }
 
+interface ConferenceGroup {
+  id: string;
+  name: string;
+  abbreviation?: string;
+  abbr?: string;
+}
+
+const CFB_FILTERS = [
+  { id: "top25", label: "Top 25" },
+  { id: "fbs", label: "All FBS" },
+  { id: "fcs", label: "All FCS" },
+];
+
+const CBB_FILTERS = [
+  { id: "top25", label: "Top 25" },
+  { id: "d1", label: "All Division I" },
+];
+
+const MAJOR_CFB_CONFERENCES = [
+  { id: "1", name: "ACC", abbr: "ACC" },
+  { id: "4", name: "Big 12", abbr: "Big 12" },
+  { id: "5", name: "Big Ten", abbr: "Big Ten" },
+  { id: "9", name: "Pac-12", abbr: "Pac-12" },
+  { id: "8", name: "SEC", abbr: "SEC" },
+  { id: "151", name: "American", abbr: "AAC" },
+  { id: "12", name: "Conference USA", abbr: "CUSA" },
+  { id: "15", name: "Mid-American", abbr: "MAC" },
+  { id: "17", name: "Mountain West", abbr: "MWC" },
+  { id: "37", name: "Sun Belt", abbr: "Sun Belt" },
+];
+
+const MAJOR_CBB_CONFERENCES = [
+  { id: "2", name: "ACC", abbr: "ACC" },
+  { id: "7", name: "Atlantic 10", abbr: "A-10" },
+  { id: "8", name: "Big 12", abbr: "Big 12" },
+  { id: "3", name: "Big East", abbr: "Big East" },
+  { id: "4", name: "Big Ten", abbr: "Big Ten" },
+  { id: "21", name: "Pac-12", abbr: "Pac-12" },
+  { id: "23", name: "SEC", abbr: "SEC" },
+  { id: "62", name: "American", abbr: "AAC" },
+  { id: "11", name: "Conference USA", abbr: "CUSA" },
+  { id: "16", name: "Mountain West", abbr: "MWC" },
+];
+
 export default function SportScores() {
   const [match, params] = useRoute("/sport/:sport/scores");
   const sport = params?.sport;
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [filter, setFilter] = useState("all");
+  const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
 
-  const { cfg, games, loading, error } = useEspnScores(sportKey, selectedDate);
+  const isCollegeSport = sportKey === "ncaaf" || sportKey === "ncaab";
+
+  useEffect(() => {
+    if (!isCollegeSport) {
+      setConferences([]);
+      return;
+    }
+    
+    async function loadConferences() {
+      try {
+        const res = await fetch(`/api/espn/groups/${sportKey}`);
+        if (res.ok) {
+          const data = await res.json();
+          const groups = data?.groups ?? data?.children ?? [];
+          const confList = groups.map((g: any) => ({
+            id: String(g?.id ?? ""),
+            name: g?.name ?? g?.displayName ?? "",
+            abbreviation: g?.abbreviation ?? g?.shortName ?? "",
+          })).filter((c: ConferenceGroup) => c.id && c.name);
+          setConferences(confList);
+        }
+      } catch (e) {
+        console.error("Failed to load conferences:", e);
+      }
+    }
+    loadConferences();
+  }, [sportKey, isCollegeSport]);
+
+  const { cfg, games, loading, error } = useEspnScores(sportKey, selectedDate, filter !== "all" ? filter : undefined);
+
+  const filterOptions = useMemo(() => {
+    if (sportKey === "ncaaf") {
+      const opts = [...CFB_FILTERS];
+      const confs = conferences.length > 0 ? conferences : MAJOR_CFB_CONFERENCES;
+      confs.forEach((c: any) => {
+        opts.push({ id: `conf-${c.id}`, label: c.abbreviation || c.abbr || c.name });
+      });
+      return opts;
+    }
+    if (sportKey === "ncaab") {
+      const opts = [...CBB_FILTERS];
+      const confs = conferences.length > 0 ? conferences : MAJOR_CBB_CONFERENCES;
+      confs.forEach((c: any) => {
+        opts.push({ id: `conf-${c.id}`, label: c.abbreviation || c.abbr || c.name });
+      });
+      return opts;
+    }
+    return [];
+  }, [sportKey, conferences]);
 
   if (!match || !cfg) return null;
 
@@ -60,9 +155,8 @@ export default function SportScores() {
       <SportSubnav sportKey={sportKey} />
 
       <div className="container px-4 md:px-6 py-8">
-        {/* Date Picker Section */}
-        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
+        <div className="mb-6 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="icon"
@@ -78,7 +172,7 @@ export default function SportScores() {
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-[240px] justify-start text-left font-normal uppercase font-bold tracking-wider",
+                    "w-[200px] justify-start text-left font-normal uppercase font-bold tracking-wider",
                     !selectedDate && "text-muted-foreground"
                   )}
                   data-testid="button-date-picker"
@@ -106,18 +200,35 @@ export default function SportScores() {
             >
               <ChevronRightIcon className="h-4 w-4" />
             </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedDate(new Date())}
+              className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
+              data-testid="button-today"
+            >
+              Today
+            </Button>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedDate(new Date())}
-            className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
-            data-testid="button-today"
-          >
-            Today
-          </Button>
+          {isCollegeSport && filterOptions.length > 0 && (
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-[180px] uppercase font-bold tracking-wider" data-testid="select-filter">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="uppercase font-bold">All Games</SelectItem>
+                {filterOptions.map(opt => (
+                  <SelectItem key={opt.id} value={opt.id} className="uppercase font-bold">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
+
         {error && (
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm text-destructive font-bold">
@@ -200,6 +311,12 @@ export default function SportScores() {
             )
           )}
         </div>
+
+        {!loading && games.length === 0 && (
+          <Card className="p-6 bg-card border-border" data-testid="empty-scores">
+            <div className="text-sm text-muted-foreground">No games found for the selected date and filter.</div>
+          </Card>
+        )}
       </div>
     </div>
   );

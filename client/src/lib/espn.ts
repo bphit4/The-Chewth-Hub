@@ -165,13 +165,14 @@ export async function fetchScoreboard(apiPath: EspnApiSportPath) {
 
 export type ChewthGame = {
   id: string;
-  sportKey: EspnSportKey;
-  leagueLabel: string;
+  sportKey?: EspnSportKey;
+  leagueLabel?: string;
   status: string;
   state: string;
-  date: string;
-  home: { name: string; abbr: string; logo?: string; score?: number };
-  away: { name: string; abbr: string; logo?: string; score?: number };
+  date?: string;
+  home: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string };
+  away: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string };
+  groups?: string[];
 };
 
 export function mapEspnEventToGame(event: EspnScoreboardEvent, sportKey: EspnSportKey, leagueLabel: string): ChewthGame {
