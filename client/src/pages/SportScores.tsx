@@ -295,64 +295,68 @@ export default function SportScores() {
         </div>
       )}
 
-      <div className="container px-4 md:px-6 py-8">
+      <div className="container px-4 md:px-6 py-6">
         <div className="mb-6 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handlePrevDay}
-              data-testid="button-prev-day"
-              className="hover:bg-primary/10"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-[200px] justify-start text-left font-normal uppercase font-bold tracking-wider",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                  data-testid="button-date-picker"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+          {/* Date picker - only for non-week-based sports */}
+          {!isWeekBasedSport && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handlePrevDay}
+                data-testid="button-prev-day"
+                className="hover:bg-primary/10"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal uppercase font-bold tracking-wider",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                    data-testid="button-date-picker"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleNextDay}
-              data-testid="button-next-day"
-              className="hover:bg-primary/10"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleNextDay}
+                data-testid="button-next-day"
+                className="hover:bg-primary/10"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedDate(new Date())}
-              className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
-              data-testid="button-today"
-            >
-              Today
-            </Button>
-          </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedDate(new Date())}
+                className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
+                data-testid="button-today"
+              >
+                Today
+              </Button>
+            </div>
+          )}
 
+          {/* Filter dropdown - for college sports */}
           {isCollegeSport && filterOptions.length > 0 && (
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-[180px] uppercase font-bold tracking-wider" data-testid="select-filter">

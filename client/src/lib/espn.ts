@@ -39,7 +39,7 @@ export const SPORTS: {
   },
   {
     key: "ncaaf",
-    label: "College Football",
+    label: "NCAAF",
     apiPath: "football/college-football",
     scoresTabs: [
       { key: "home", label: "Home", href: (s) => `/sport/${s}` },
@@ -71,7 +71,7 @@ export const SPORTS: {
   },
   {
     key: "ncaab",
-    label: "College Basketball",
+    label: "NCAAM",
     apiPath: "basketball/mens-college-basketball",
     scoresTabs: [
       { key: "home", label: "Home", href: (s) => `/sport/${s}` },
