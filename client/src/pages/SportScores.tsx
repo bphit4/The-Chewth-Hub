@@ -1,5 +1,5 @@
 import { useRoute, Link } from "wouter";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,35 @@ import { cn } from "@/lib/utils";
 import { SPORTS, type EspnSportKey } from "@/lib/espn";
 import { useEspnScores } from "@/hooks/useEspnScores";
 import { format } from "date-fns";
+
+interface WeekEntry {
+  label: string;
+  value: string;
+  startDate: string;
+  endDate: string;
+}
+
+function parseCalendarWeeks(data: any): WeekEntry[] {
+  const leagues = data?.leagues ?? [];
+  const league = leagues[0];
+  const calendar = league?.calendar ?? [];
+  
+  const weeks: WeekEntry[] = [];
+  
+  for (const season of calendar) {
+    const entries = season?.entries ?? [];
+    for (const entry of entries) {
+      weeks.push({
+        label: entry?.label ?? entry?.alternateLabel ?? `Week ${weeks.length + 1}`,
+        value: entry?.value ?? String(weeks.length + 1),
+        startDate: entry?.startDate ?? "",
+        endDate: entry?.endDate ?? ""
+      });
+    }
+  }
+  
+  return weeks;
+}
 
 const sportKeys = SPORTS.map((s) => s.key);
 
@@ -70,8 +99,53 @@ export default function SportScores() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [filter, setFilter] = useState("all");
   const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
+  const [weeks, setWeeks] = useState<WeekEntry[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState<string>("");
+  const weekScrollRef = useRef<HTMLDivElement>(null);
 
   const isCollegeSport = sportKey === "ncaaf" || sportKey === "ncaab";
+  const isWeekBasedSport = sportKey === "nfl" || sportKey === "ncaaf";
+
+  // Load weeks for NFL and CFB
+  useEffect(() => {
+    if (!isWeekBasedSport) {
+      setWeeks([]);
+      setSelectedWeek("");
+      return;
+    }
+    
+    async function loadCalendar() {
+      try {
+        const res = await fetch(`/api/espn/calendar/${sportKey}`);
+        if (res.ok) {
+          const data = await res.json();
+          const parsedWeeks = parseCalendarWeeks(data);
+          setWeeks(parsedWeeks);
+          
+          // Find current week based on today's date
+          const today = new Date();
+          const currentWeek = parsedWeeks.find(w => {
+            const start = new Date(w.startDate);
+            const end = new Date(w.endDate);
+            return today >= start && today <= end;
+          });
+          
+          if (currentWeek) {
+            setSelectedWeek(currentWeek.value);
+            setSelectedDate(new Date(currentWeek.startDate));
+          } else if (parsedWeeks.length > 0) {
+            // Default to last week if not in season
+            const lastWeek = parsedWeeks[parsedWeeks.length - 1];
+            setSelectedWeek(lastWeek.value);
+            setSelectedDate(new Date(lastWeek.startDate));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load calendar:", e);
+      }
+    }
+    loadCalendar();
+  }, [sportKey, isWeekBasedSport]);
 
   useEffect(() => {
     if (!isCollegeSport) {
@@ -98,6 +172,24 @@ export default function SportScores() {
     }
     loadConferences();
   }, [sportKey, isCollegeSport]);
+
+  const handleWeekChange = (weekValue: string) => {
+    setSelectedWeek(weekValue);
+    const week = weeks.find(w => w.value === weekValue);
+    if (week?.startDate) {
+      setSelectedDate(new Date(week.startDate));
+    }
+  };
+
+  const scrollWeeks = (direction: 'left' | 'right') => {
+    if (weekScrollRef.current) {
+      const scrollAmount = 200;
+      weekScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const { cfg, games, loading, error } = useEspnScores(sportKey, selectedDate, filter !== "all" ? filter : undefined);
 
@@ -153,6 +245,57 @@ export default function SportScores() {
       </div>
 
       <SportSubnav sportKey={sportKey} />
+
+      {/* Week Navigation for NFL and CFB */}
+      {isWeekBasedSport && weeks.length > 0 && (
+        <div className="border-b border-border bg-card">
+          <div className="container px-4 md:px-6">
+            <div className="flex items-center gap-2 py-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => scrollWeeks('left')}
+                className="shrink-0 h-8 w-8"
+                data-testid="button-week-scroll-left"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div
+                ref={weekScrollRef}
+                className="flex gap-1 overflow-x-auto scrollbar-hide scroll-smooth flex-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {weeks.map((week) => (
+                  <Button
+                    key={week.value}
+                    variant={selectedWeek === week.value ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => handleWeekChange(week.value)}
+                    className={cn(
+                      "shrink-0 whitespace-nowrap text-xs font-bold uppercase tracking-wider",
+                      selectedWeek === week.value ? "bg-primary text-primary-foreground" : "hover:bg-primary/10"
+                    )}
+                    data-testid={`button-week-${week.value}`}
+                  >
+                    {week.label}
+                  </Button>
+                ))}
+              </div>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => scrollWeeks('right')}
+                className="shrink-0 h-8 w-8"
+                data-testid="button-week-scroll-right"
+              >
+                <ChevronRightIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="container px-4 md:px-6 py-8">
         <div className="mb-6 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">

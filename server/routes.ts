@@ -321,5 +321,19 @@ export async function registerRoutes(
     }
   });
 
+  // ESPN calendar/weeks proxy for NFL and CFB
+  app.get("/api/espn/calendar/:sport", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnCalendar(req.params.sport);
+      if (!data) {
+        res.json({ leagues: [] });
+        return;
+      }
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return httpServer;
 }

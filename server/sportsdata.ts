@@ -280,6 +280,16 @@ export async function getEspnNews(sport: string, limit = 30) {
   return fetchEspn(`${ESPN_BASE}/${path}/news?limit=${limit}`, 5 * 60_000);
 }
 
+export async function getEspnCalendar(sport: string) {
+  const sportPaths: Record<string, string> = {
+    nfl: "football/nfl",
+    ncaaf: "football/college-football"
+  };
+  const path = sportPaths[sport];
+  if (!path) return null;
+  return fetchEspn(`${ESPN_BASE}/${path}/scoreboard`, 60 * 60_000);
+}
+
 export async function getEspnLeaders(sport: string) {
   const sportPaths: Record<string, string> = {
     nfl: "football/nfl",

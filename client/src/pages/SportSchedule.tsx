@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useRoute, Link } from "wouter";
-import { AlertCircle, CalendarDays, ChevronRight } from "lucide-react";
+import { AlertCircle, CalendarDays, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -129,6 +129,19 @@ export default function SportSchedule() {
       <div className="container px-4 md:px-6 py-8">
         <div className="mb-6 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const d = new Date(date);
+                d.setDate(d.getDate() - 1);
+                setDate(d.toISOString().split('T')[0]);
+              }}
+              data-testid="button-schedule-prev"
+              className="hover:bg-primary/10"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
             <Input
               data-testid="input-schedule-date"
@@ -137,9 +150,31 @@ export default function SportSchedule() {
               onChange={(e) => setDate(e.target.value)}
               className="w-[180px]"
             />
-            <Badge className="bg-secondary/10 text-muted-foreground border-border uppercase tracking-widest text-[10px] font-black rounded-sm" data-testid="badge-schedule-date">
-              {dates}
-            </Badge>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const d = new Date(date);
+                d.setDate(d.getDate() + 1);
+                setDate(d.toISOString().split('T')[0]);
+              }}
+              data-testid="button-schedule-next"
+              className="hover:bg-primary/10"
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const d = new Date();
+                setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+              }}
+              data-testid="button-schedule-today"
+              className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
+            >
+              Today
+            </Button>
           </div>
           <Link href={`/sport/${sportKey}/scores`} data-testid="link-schedule-scores" className="block">
             <Button data-testid="button-schedule-scores" size="sm" variant="outline" className="uppercase font-bold tracking-wider">

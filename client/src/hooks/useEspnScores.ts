@@ -32,7 +32,9 @@ function normalizeEspnScoreboard(data: any): ChewthGame[] {
         rank: away?.curatedRank?.current ?? away?.rank ?? undefined,
         conferenceId: away?.team?.conferenceId,
       },
-      groups: event?.competitions?.[0]?.groups?.map((g: any) => g?.id) ?? [],
+      groups: Array.isArray(event?.competitions?.[0]?.groups) 
+        ? event.competitions[0].groups.map((g: any) => g?.id) 
+        : [],
     };
   });
 }
