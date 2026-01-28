@@ -27,8 +27,8 @@ interface ScheduleEvent {
   date: string;
   status: string;
   state: string;
-  home: { name: string; abbr: string; logo?: string; score?: string };
-  away: { name: string; abbr: string; logo?: string; score?: string };
+  home: { name: string; abbr: string; logo?: string; score?: string; rank?: number };
+  away: { name: string; abbr: string; logo?: string; score?: string; rank?: number };
 }
 
 function normalizeEvents(data: any): ScheduleEvent[] {
@@ -50,12 +50,14 @@ function normalizeEvents(data: any): ScheduleEvent[] {
         abbr: home?.team?.abbreviation ?? "HOME",
         logo: home?.team?.logo ?? home?.team?.logos?.[0]?.href,
         score: home?.score,
+        rank: home?.curatedRank?.current && home.curatedRank.current <= 25 ? home.curatedRank.current : undefined,
       },
       away: {
         name: away?.team?.displayName ?? "Away",
         abbr: away?.team?.abbreviation ?? "AWAY",
         logo: away?.team?.logo ?? away?.team?.logos?.[0]?.href,
         score: away?.score,
+        rank: away?.curatedRank?.current && away.curatedRank.current <= 25 ? away.curatedRank.current : undefined,
       },
     };
   });
@@ -66,6 +68,7 @@ export default function SportSchedule() {
   const sport = params?.sport;
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const cfg = getSportConfig(sportKey);
+  const isWeekBasedSport = sportKey === "nfl" || sportKey === "ncaaf";
 
   const [date, setDate] = useState(() => {
     const d = new Date();
@@ -122,54 +125,61 @@ export default function SportSchedule() {
 
       <div className="container px-4 md:px-6 py-8">
         <div className="mb-6 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                const d = new Date(date);
-                d.setDate(d.getDate() - 1);
-                setDate(d.toISOString().split('T')[0]);
-              }}
-              data-testid="button-schedule-prev"
-              className="hover:bg-primary/10"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            <Input
-              data-testid="input-schedule-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-[180px]"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                const d = new Date(date);
-                d.setDate(d.getDate() + 1);
-                setDate(d.toISOString().split('T')[0]);
-              }}
-              data-testid="button-schedule-next"
-              className="hover:bg-primary/10"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const d = new Date();
-                setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-              }}
-              data-testid="button-schedule-today"
-              className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
-            >
-              Today
-            </Button>
-          </div>
+          {/* Show date picker only for non-week-based sports */}
+          {!isWeekBasedSport ? (
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const d = new Date(date);
+                  d.setDate(d.getDate() - 1);
+                  setDate(d.toISOString().split('T')[0]);
+                }}
+                data-testid="button-schedule-prev"
+                className="hover:bg-primary/10"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <Input
+                data-testid="input-schedule-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-[180px]"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const d = new Date(date);
+                  d.setDate(d.getDate() + 1);
+                  setDate(d.toISOString().split('T')[0]);
+                }}
+                data-testid="button-schedule-next"
+                className="hover:bg-primary/10"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const d = new Date();
+                  setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+                }}
+                data-testid="button-schedule-today"
+                className="uppercase font-bold tracking-wider text-xs text-primary hover:text-primary/80"
+              >
+                Today
+              </Button>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground" data-testid="text-schedule-week-note">
+              Use the Scores page for week-by-week {cfg.label} schedule
+            </div>
+          )}
           <Link href={`/sport/${sportKey}/scores`} data-testid="link-schedule-scores" className="block">
             <Button data-testid="button-schedule-scores" size="sm" variant="outline" className="uppercase font-bold tracking-wider">
               View Scores
@@ -185,52 +195,69 @@ export default function SportSchedule() {
           </div>
         )}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {(loading ? Array(9).fill(0) : events).map((e: any, idx: number) =>
             loading ? (
-              <Card key={idx} className="h-40 animate-pulse bg-card border-border" data-testid={`skeleton-event-${idx}`} />
+              <Card key={idx} className="h-32 animate-pulse bg-card border-border" data-testid={`skeleton-event-${idx}`} />
             ) : (
               <Link
                 key={e.id}
                 href={`/sport/${sportKey}/game/${e.id}`}
-                className="block"
+                className="block group"
                 data-testid={`card-schedule-event-${e.id}`}
               >
-                <Card className="bg-card border-border p-5 hover:shadow-xl hover:shadow-primary/10 transition-all">
-                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-border/60">
-                    <div className="text-xs font-black uppercase tracking-widest text-primary">{cfg.label}</div>
-                    <Badge className="bg-secondary/10 text-muted-foreground border-border uppercase tracking-widest text-[10px] font-black rounded-sm" data-testid={`badge-event-status-${e.id}`}>
+                <Card className="bg-card hover:bg-accent/5 border border-border/60 hover:border-border transition-all overflow-hidden">
+                  <div className="flex justify-between items-center px-4 py-2 bg-muted/30 border-b border-border/40">
+                    <Badge
+                      variant="secondary"
+                      className="rounded text-[10px] font-bold px-2 py-0.5 bg-transparent text-muted-foreground"
+                    >
                       {e.status}
                     </Badge>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {e.away.logo ? (
-                          <img src={e.away.logo} alt="" className="h-7 w-7 object-contain" />
+                          <img src={e.away.logo} alt="" className="h-6 w-6 object-contain" />
                         ) : (
-                          <div className="h-7 w-7 rounded-full bg-secondary/10" />
+                          <div className="h-6 w-6 rounded bg-muted" />
                         )}
-                        <div className="font-bold" data-testid={`text-away-${e.id}`}>{e.away.name}</div>
+                        <div className="flex items-center gap-2">
+                          {e.away.rank && (
+                            <span className="text-xs text-muted-foreground font-bold">{e.away.rank}</span>
+                          )}
+                          <span className="font-bold text-sm" data-testid={`text-away-${e.id}`}>{e.away.name}</span>
+                        </div>
                       </div>
-                      <div className="font-mono text-xl font-black" data-testid={`text-away-score-${e.id}`}>{e.away.score ?? "—"}</div>
+                      <div className="font-mono text-lg font-black" data-testid={`text-away-score-${e.id}`}>{e.away.score ?? "—"}</div>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {e.home.logo ? (
-                          <img src={e.home.logo} alt="" className="h-7 w-7 object-contain" />
+                          <img src={e.home.logo} alt="" className="h-6 w-6 object-contain" />
                         ) : (
-                          <div className="h-7 w-7 rounded-full bg-secondary/10" />
+                          <div className="h-6 w-6 rounded bg-muted" />
                         )}
-                        <div className="font-bold" data-testid={`text-home-${e.id}`}>{e.home.name}</div>
+                        <div className="flex items-center gap-2">
+                          {e.home.rank && (
+                            <span className="text-xs text-muted-foreground font-bold">{e.home.rank}</span>
+                          )}
+                          <span className="font-bold text-sm" data-testid={`text-home-${e.id}`}>{e.home.name}</span>
+                        </div>
                       </div>
-                      <div className="font-mono text-xl font-black" data-testid={`text-home-score-${e.id}`}>{e.home.score ?? "—"}</div>
+                      <div className="font-mono text-lg font-black" data-testid={`text-home-score-${e.id}`}>{e.home.score ?? "—"}</div>
                     </div>
                   </div>
 
-                  <div className="mt-4 text-xs text-muted-foreground" data-testid={`text-event-date-${e.id}`}>
-                    {e.date ? new Date(e.date).toLocaleString() : ""}
+                  <div className="px-4 py-2 border-t border-border/40 bg-muted/20 flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground" data-testid={`text-event-date-${e.id}`}>
+                      {e.date ? new Date(e.date).toLocaleString() : ""}
+                    </span>
+                    <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">
+                      Details →
+                    </span>
                   </div>
                 </Card>
               </Link>

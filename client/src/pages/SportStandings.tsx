@@ -1,8 +1,7 @@
 import { useRoute } from "wouter";
 import { useEffect, useState, useMemo } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
 
@@ -18,11 +17,27 @@ interface StandingsEntry {
   logo?: string;
   rank?: string;
   stats: Record<string, string>;
+  statsNumeric: Record<string, number>;
 }
 
 interface StandingsGroup {
   groupName: string;
+  parentGroup?: string;
   entries: StandingsEntry[];
+}
+
+function parseStats(statsArr: any[]): { stats: Record<string, string>; statsNumeric: Record<string, number> } {
+  const stats: Record<string, string> = {};
+  const statsNumeric: Record<string, number> = {};
+  for (const s of statsArr) {
+    const key = s?.abbreviation || s?.name;
+    if (key) {
+      stats[key] = s?.displayValue ?? "";
+      const numVal = parseFloat(s?.value ?? s?.displayValue ?? "");
+      statsNumeric[key] = isNaN(numVal) ? 0 : numVal;
+    }
+  }
+  return { stats, statsNumeric };
 }
 
 function pickStandingsRows(data: any): StandingsGroup[] {
@@ -30,31 +45,51 @@ function pickStandingsRows(data: any): StandingsGroup[] {
   const out: StandingsGroup[] = [];
 
   for (const g of groups) {
-    const groupName = g?.name ?? "";
-    const standings = g?.standings?.entries ?? [];
-    const entries = standings.map((e: any) => {
-      const team = e?.team ?? {};
-      const statsArr = e?.stats ?? [];
-      const stats: Record<string, string> = {};
-      for (const s of statsArr) {
-        const key = s?.abbreviation || s?.name;
-        if (key) stats[key] = s?.displayValue ?? "";
+    const parentName = g?.name ?? "";
+    const children = g?.children ?? [];
+    
+    if (children.length > 0) {
+      for (const child of children) {
+        const groupName = child?.name ?? "";
+        const standings = child?.standings?.entries ?? [];
+        const entries = standings.map((e: any) => {
+          const team = e?.team ?? {};
+          const { stats, statsNumeric } = parseStats(e?.stats ?? []);
+          return {
+            id: String(team?.id ?? team?.abbreviation ?? team?.displayName ?? Math.random()),
+            teamName: team?.displayName ?? "",
+            teamAbbr: team?.abbreviation ?? "",
+            logo: team?.logos?.[0]?.href,
+            rank: e?.note?.rank ? String(e.note.rank) : undefined,
+            stats,
+            statsNumeric,
+          };
+        });
+        if (entries.length) out.push({ groupName, parentGroup: parentName, entries });
       }
-      return {
-        id: String(team?.id ?? team?.abbreviation ?? team?.displayName ?? Math.random()),
-        teamName: team?.displayName ?? "",
-        teamAbbr: team?.abbreviation ?? "",
-        logo: team?.logos?.[0]?.href,
-        rank: e?.note?.rank ? String(e.note.rank) : undefined,
-        stats,
-      };
-    });
-
-    if (entries.length) out.push({ groupName, entries });
+    } else {
+      const standings = g?.standings?.entries ?? [];
+      const entries = standings.map((e: any) => {
+        const team = e?.team ?? {};
+        const { stats, statsNumeric } = parseStats(e?.stats ?? []);
+        return {
+          id: String(team?.id ?? team?.abbreviation ?? team?.displayName ?? Math.random()),
+          teamName: team?.displayName ?? "",
+          teamAbbr: team?.abbreviation ?? "",
+          logo: team?.logos?.[0]?.href,
+          rank: e?.note?.rank ? String(e.note.rank) : undefined,
+          stats,
+          statsNumeric,
+        };
+      });
+      if (entries.length) out.push({ groupName: parentName, entries });
+    }
   }
 
   return out;
 }
+
+type SortConfig = { key: string; direction: 'asc' | 'desc' } | null;
 
 export default function SportStandings() {
   const [match, params] = useRoute("/sport/:sport/standings");
@@ -65,6 +100,7 @@ export default function SportStandings() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortConfigs, setSortConfigs] = useState<Record<number, SortConfig>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -89,19 +125,55 @@ export default function SportStandings() {
   if (!match || !cfg) return null;
 
   const groups = useMemo(() => pickStandingsRows(data), [data]);
+  
   const columns = [
-    { key: "W", label: "W" },
-    { key: "L", label: "L" },
-    { key: "PCT", label: "PCT" },
-    { key: "GB", label: "GB" },
-    { key: "PF", label: "PF" },
-    { key: "PA", label: "PA" },
-    { key: "HOME", label: "HOME" },
-    { key: "AWAY", label: "AWAY" },
-    { key: "DIV", label: "DIV" },
-    { key: "CONF", label: "CONF" },
-    { key: "STRK", label: "STRK" },
+    { key: "W", label: "W", sortable: true },
+    { key: "L", label: "L", sortable: true },
+    { key: "PCT", label: "PCT", sortable: true },
+    { key: "GB", label: "GB", sortable: true },
+    { key: "PF", label: "PF", sortable: true },
+    { key: "PA", label: "PA", sortable: true },
+    { key: "HOME", label: "HOME", sortable: false },
+    { key: "AWAY", label: "AWAY", sortable: false },
+    { key: "DIV", label: "DIV", sortable: false },
+    { key: "CONF", label: "CONF", sortable: false },
+    { key: "STRK", label: "STRK", sortable: false },
   ];
+
+  const handleSort = (groupIndex: number, key: string) => {
+    setSortConfigs(prev => {
+      const current = prev[groupIndex];
+      if (current?.key === key) {
+        if (current.direction === 'desc') {
+          return { ...prev, [groupIndex]: { key, direction: 'asc' } };
+        } else {
+          return { ...prev, [groupIndex]: null };
+        }
+      }
+      return { ...prev, [groupIndex]: { key, direction: 'desc' } };
+    });
+  };
+
+  const getSortedEntries = (entries: StandingsEntry[], groupIndex: number) => {
+    const sortConfig = sortConfigs[groupIndex];
+    if (!sortConfig) return entries;
+    
+    return [...entries].sort((a, b) => {
+      const aVal = a.statsNumeric[sortConfig.key] ?? 0;
+      const bVal = b.statsNumeric[sortConfig.key] ?? 0;
+      return sortConfig.direction === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+  };
+
+  const conferenceGroups = useMemo(() => {
+    const grouped: Record<string, StandingsGroup[]> = {};
+    for (const g of groups) {
+      const key = g.parentGroup || 'Other';
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(g);
+    }
+    return grouped;
+  }, [groups]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -137,63 +209,90 @@ export default function SportStandings() {
         )}
 
         <div className="space-y-8">
-          {groups.map((g, gi) => (
-            <Card key={gi} className="bg-card border-border overflow-hidden" data-testid={`card-standings-group-${gi}`}>
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <div className="font-heading uppercase tracking-wider font-bold">{g.groupName}</div>
-                <Badge className="bg-secondary/10 text-muted-foreground border-border uppercase tracking-widest text-[10px] font-black rounded-sm">
-                  Updated
-                </Badge>
-              </div>
+          {Object.entries(conferenceGroups).map(([conferenceName, divisionGroups]) => (
+            <div key={conferenceName} className="space-y-4">
+              {conferenceName !== 'Other' && (
+                <h2 className="text-lg font-heading font-black uppercase tracking-tight text-primary">
+                  {conferenceName}
+                </h2>
+              )}
+              
+              {divisionGroups.map((g, gi) => {
+                const globalIndex = groups.indexOf(g);
+                const sortConfig = sortConfigs[globalIndex];
+                const sortedEntries = getSortedEntries(g.entries, globalIndex);
+                
+                return (
+                  <Card key={gi} className="bg-card border-border overflow-hidden" data-testid={`card-standings-group-${globalIndex}`}>
+                    <div className="flex items-center justify-between border-b border-border px-5 py-3 bg-muted/30">
+                      <div className="font-heading uppercase tracking-wider font-bold text-sm">{g.groupName}</div>
+                    </div>
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm" data-testid={`table-standings-${gi}`}>
-                  <thead>
-                    <tr className="text-xs uppercase tracking-widest text-muted-foreground">
-                      <th className="text-left px-5 py-3">Team</th>
-                      {columns.map((c) => (
-                        <th key={c.key} className="text-right px-3 py-3 whitespace-nowrap">
-                          {c.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {g.entries.map((e, ei) => (
-                      <tr
-                        key={e.id}
-                        className="border-t border-border/70 hover:bg-secondary/5 transition-colors"
-                        data-testid={`row-standings-${gi}-${ei}`}
-                      >
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-3">
-                            {e.logo ? (
-                              <img src={e.logo} alt="" className="h-7 w-7 object-contain" data-testid={`img-teamlogo-${e.id}`} />
-                            ) : (
-                              <div className="h-7 w-7 rounded-full bg-secondary/10" />
-                            )}
-                            <div className="min-w-[160px]">
-                              <div className="font-bold leading-tight" data-testid={`text-teamname-${e.id}`}>
-                                {e.rank ? `${e.rank}. ` : ""}
-                                {e.teamName}
-                              </div>
-                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold" data-testid={`text-teamabbr-${e.id}`}>
-                                {e.teamAbbr}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        {columns.map((c) => (
-                          <td key={c.key} className="text-right px-3 py-3 font-mono" data-testid={`text-standings-${c.key}-${e.id}`}>
-                            {e.stats[c.key] ?? "—"}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm" data-testid={`table-standings-${globalIndex}`}>
+                        <thead>
+                          <tr className="text-xs uppercase tracking-widest text-muted-foreground border-b border-border/50">
+                            <th className="text-left px-5 py-2">Team</th>
+                            {columns.map((c) => (
+                              <th key={c.key} className="text-right px-3 py-2 whitespace-nowrap">
+                                {c.sortable ? (
+                                  <button
+                                    onClick={() => handleSort(globalIndex, c.key)}
+                                    className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                                    data-testid={`button-sort-${c.key}-${globalIndex}`}
+                                  >
+                                    {c.label}
+                                    {sortConfig?.key === c.key ? (
+                                      sortConfig.direction === 'desc' ? (
+                                        <ChevronDown className="h-3 w-3" />
+                                      ) : (
+                                        <ChevronUp className="h-3 w-3" />
+                                      )
+                                    ) : (
+                                      <ArrowUpDown className="h-3 w-3 opacity-40" />
+                                    )}
+                                  </button>
+                                ) : (
+                                  c.label
+                                )}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedEntries.map((e, ei) => (
+                            <tr
+                              key={e.id}
+                              className="border-t border-border/40 hover:bg-muted/30 transition-colors"
+                              data-testid={`row-standings-${globalIndex}-${ei}`}
+                            >
+                              <td className="px-5 py-2">
+                                <div className="flex items-center gap-3">
+                                  {e.logo ? (
+                                    <img src={e.logo} alt="" className="h-6 w-6 object-contain" data-testid={`img-teamlogo-${e.id}`} />
+                                  ) : (
+                                    <div className="h-6 w-6 rounded bg-muted" />
+                                  )}
+                                  <span className="font-semibold text-sm" data-testid={`text-teamname-${e.id}`}>
+                                    {e.rank && <span className="text-muted-foreground mr-1">{e.rank}</span>}
+                                    {e.teamName}
+                                  </span>
+                                </div>
+                              </td>
+                              {columns.map((c) => (
+                                <td key={c.key} className="text-right px-3 py-2 font-mono text-sm" data-testid={`text-standings-${c.key}-${e.id}`}>
+                                  {e.stats[c.key] ?? "—"}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
           ))}
         </div>
       </div>
