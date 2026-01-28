@@ -97,6 +97,7 @@ export default function SportScores() {
   const sport = params?.sport;
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedEndDate, setSelectedEndDate] = useState<Date | undefined>(undefined);
   const [filter, setFilter] = useState("all");
   const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
   const [weeks, setWeeks] = useState<WeekEntry[]>([]);
@@ -133,11 +134,13 @@ export default function SportScores() {
           if (currentWeek) {
             setSelectedWeek(currentWeek.value);
             setSelectedDate(new Date(currentWeek.startDate));
+            setSelectedEndDate(new Date(currentWeek.endDate));
           } else if (parsedWeeks.length > 0) {
             // Default to last week if not in season
             const lastWeek = parsedWeeks[parsedWeeks.length - 1];
             setSelectedWeek(lastWeek.value);
             setSelectedDate(new Date(lastWeek.startDate));
+            setSelectedEndDate(new Date(lastWeek.endDate));
           }
         }
       } catch (e) {
@@ -178,6 +181,7 @@ export default function SportScores() {
     const week = weeks.find(w => w.value === weekValue);
     if (week?.startDate) {
       setSelectedDate(new Date(week.startDate));
+      setSelectedEndDate(week.endDate ? new Date(week.endDate) : undefined);
     }
   };
 
@@ -191,7 +195,7 @@ export default function SportScores() {
     }
   };
 
-  const { cfg, games, loading, error } = useEspnScores(sportKey, selectedDate, filter !== "all" ? filter : undefined);
+  const { cfg, games, loading, error } = useEspnScores(sportKey, selectedDate, filter !== "all" ? filter : undefined, isWeekBasedSport ? selectedEndDate : undefined);
 
   const filterOptions = useMemo(() => {
     if (sportKey === "ncaaf") {
@@ -266,9 +270,9 @@ export default function SportScores() {
                 className="flex gap-1 overflow-x-auto scrollbar-hide scroll-smooth flex-1"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {weeks.map((week) => (
+                {weeks.map((week, idx) => (
                   <Button
-                    key={week.value}
+                    key={`${idx}-${week.value}`}
                     variant={selectedWeek === week.value ? "default" : "ghost"}
                     size="sm"
                     onClick={() => handleWeekChange(week.value)}
@@ -276,7 +280,7 @@ export default function SportScores() {
                       "shrink-0 whitespace-nowrap text-xs font-bold uppercase tracking-wider",
                       selectedWeek === week.value ? "bg-primary text-primary-foreground" : "hover:bg-primary/10"
                     )}
-                    data-testid={`button-week-${week.value}`}
+                    data-testid={`button-week-${idx}-${week.value}`}
                   >
                     {week.label}
                   </Button>

@@ -54,13 +54,21 @@ export default function GameDetail() {
     const comps = event?.competitors ?? [];
     const home = comps.find((c: any) => c.homeAway === "home");
     const away = comps.find((c: any) => c.homeAway === "away");
+    
+    const getTeamLogo = (team: any) => {
+      if (!team) return undefined;
+      return team.team?.logo || 
+             team.team?.logos?.[0]?.href || 
+             (team.team?.id ? `https://a.espncdn.com/i/teamlogos/${sportKey === 'ncaaf' || sportKey === 'ncaab' ? 'ncaa' : sportKey}/500/${team.team.id}.png` : undefined);
+    };
+    
     return {
       status: data?.header?.competitions?.[0]?.status?.type?.shortDetail ?? "",
-      home,
-      away,
+      home: { ...home, logoUrl: getTeamLogo(home) },
+      away: { ...away, logoUrl: getTeamLogo(away) },
       link: data?.header?.links?.find((l: any) => l?.rel?.includes("summary"))?.href,
     };
-  }, [data]);
+  }, [data, sportKey]);
 
   if (!match || !cfg) return null;
 
@@ -105,8 +113,12 @@ export default function GameDetail() {
                     <div className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-2">Away</div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {header.away?.team?.logo && (
-                          <img src={header.away.team.logo} alt="" className="h-10 w-10 object-contain" />
+                        {(header.away?.logoUrl || header.away?.team?.logo) ? (
+                          <img src={header.away.logoUrl || header.away.team?.logo} alt="" className="h-10 w-10 object-contain" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-secondary/20 grid place-items-center font-heading font-bold text-sm">
+                            {header.away?.team?.abbreviation?.slice(0, 2) || "A"}
+                          </div>
                         )}
                         <div>
                           <div className="font-bold text-lg">{header.away?.team?.displayName}</div>
@@ -121,8 +133,12 @@ export default function GameDetail() {
                     <div className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-2">Home</div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {header.home?.team?.logo && (
-                          <img src={header.home.team.logo} alt="" className="h-10 w-10 object-contain" />
+                        {(header.home?.logoUrl || header.home?.team?.logo) ? (
+                          <img src={header.home.logoUrl || header.home.team?.logo} alt="" className="h-10 w-10 object-contain" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-secondary/20 grid place-items-center font-heading font-bold text-sm">
+                            {header.home?.team?.abbreviation?.slice(0, 2) || "H"}
+                          </div>
                         )}
                         <div>
                           <div className="font-bold text-lg">{header.home?.team?.displayName}</div>
