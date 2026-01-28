@@ -2,11 +2,50 @@ import { useEffect, useMemo, useState } from "react";
 import { getSportConfig, type ChewthGame, type EspnSportKey } from "@/lib/espn";
 import { format } from "date-fns";
 
+function normalizeEspnScoreboard(data: any): ChewthGame[] {
+  const events = data?.events ?? [];
+  return events.map((event: any) => {
+    const comp = event?.competitions?.[0];
+    const competitors = comp?.competitors ?? [];
+    const home = competitors.find((c: any) => c.homeAway === "home");
+    const away = competitors.find((c: any) => c.homeAway === "away");
+    
+    return {
+      id: event?.id ?? "",
+      state: event?.status?.type?.state ?? "pre",
+      status: event?.status?.type?.shortDetail ?? event?.status?.type?.description ?? "",
+      home: {
+        id: home?.team?.id ?? "",
+        name: home?.team?.displayName ?? home?.team?.name ?? "",
+        abbr: home?.team?.abbreviation ?? "",
+        logo: home?.team?.logos?.[0]?.href ?? home?.team?.logo,
+        score: parseInt(home?.score ?? "0", 10) || 0,
+      },
+      away: {
+        id: away?.team?.id ?? "",
+        name: away?.team?.displayName ?? away?.team?.name ?? "",
+        abbr: away?.team?.abbreviation ?? "",
+        logo: away?.team?.logos?.[0]?.href ?? away?.team?.logo,
+        score: parseInt(away?.score ?? "0", 10) || 0,
+      },
+    };
+  });
+}
+
 async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date): Promise<ChewthGame[]> {
-  // Format date for SportsDataIO: YYYY-MMM-DD (e.g., "2026-JAN-28")
-  const dateStr = format(date, "yyyy-MMM-dd").toUpperCase();
+  // For college sports, use ESPN scoreboard (more reliable)
+  if (sportKey === "ncaaf" || sportKey === "ncaab") {
+    const dateStr = format(date, "yyyyMMdd");
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
+    if (!res.ok) {
+      throw new Error(`ESPN API error: ${res.status}`);
+    }
+    const data = await res.json();
+    return normalizeEspnScoreboard(data);
+  }
   
-  // Map sport keys to backend routes
+  // For pro sports, use SportsDataIO
+  const dateStr = format(date, "yyyy-MMM-dd").toUpperCase();
   const sportMap: Record<EspnSportKey, string> = {
     nfl: "nfl",
     nba: "nba",
@@ -17,21 +56,18 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date): Promi
   };
   
   const apiSport = sportMap[sportKey];
-  
-  // CFB uses season/week format, others use date
-  let endpoint: string;
-  if (sportKey === "ncaaf") {
-    // For CFB, use current season and week 1 for now (TODO: calculate proper week)
-    const season = date.getFullYear().toString();
-    endpoint = `/api/cfb/scores/${season}/1`;
-  } else {
-    endpoint = `/api/${apiSport}/scores/${dateStr}`;
-  }
+  const endpoint = `/api/${apiSport}/scores/${dateStr}`;
   
   const res = await fetch(endpoint);
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Backend API error: ${res.status} - ${text}`);
+    // Fallback to ESPN for any sport
+    const espnDateStr = format(date, "yyyyMMdd");
+    const espnRes = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${espnDateStr}`);
+    if (espnRes.ok) {
+      const data = await espnRes.json();
+      return normalizeEspnScoreboard(data);
+    }
+    throw new Error(`API error: ${res.status}`);
   }
   
   return await res.json();

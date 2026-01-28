@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { AlertCircle, CalendarDays, ChevronRight } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
@@ -6,8 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SPORTS, type EspnSportKey, getSportConfig, espnScoreboardUrl } from "@/lib/espn";
-import { useEspnResource } from "@/hooks/useEspnResource";
+import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
@@ -22,7 +21,17 @@ function yyyymmddFromDateInput(v: string) {
   return `${parts[0]}${parts[1]}${parts[2]}`;
 }
 
-function normalizeEvents(data: any) {
+interface ScheduleEvent {
+  id: string;
+  name: string;
+  date: string;
+  status: string;
+  state: string;
+  home: { name: string; abbr: string; logo?: string; score?: string };
+  away: { name: string; abbr: string; logo?: string; score?: string };
+}
+
+function normalizeEvents(data: any): ScheduleEvent[] {
   const events = data?.events ?? [];
   return events.map((e: any) => {
     const comp = e?.competitions?.[0];
@@ -39,13 +48,13 @@ function normalizeEvents(data: any) {
       home: {
         name: home?.team?.displayName ?? "Home",
         abbr: home?.team?.abbreviation ?? "HOME",
-        logo: home?.team?.logo,
+        logo: home?.team?.logo ?? home?.team?.logos?.[0]?.href,
         score: home?.score,
       },
       away: {
         name: away?.team?.displayName ?? "Away",
         abbr: away?.team?.abbreviation ?? "AWAY",
-        logo: away?.team?.logo,
+        logo: away?.team?.logo ?? away?.team?.logos?.[0]?.href,
         score: away?.score,
       },
     };
@@ -67,10 +76,32 @@ export default function SportSchedule() {
   });
 
   const dates = useMemo(() => yyyymmddFromDateInput(date), [date]);
-  const url = cfg ? espnScoreboardUrl(cfg.apiPath, dates ?? undefined) : null;
-  const { data, loading, error } = useEspnResource<any>(`schedule-${sportKey}-${dates}`, url, {
-    intervalMs: 2 * 60_000,
-  });
+
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const dateParam = dates ? `?dates=${dates}` : "";
+        const res = await fetch(`/api/espn/scoreboard/${sportKey}${dateParam}`);
+        if (!res.ok) throw new Error(`Failed to fetch schedule (${res.status})`);
+        const json = await res.json();
+        if (mounted) setData(json);
+      } catch (e: any) {
+        if (mounted) setError(e?.message ?? "Failed to load schedule");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    const interval = setInterval(load, 2 * 60_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [sportKey, dates]);
 
   const events = useMemo(() => normalizeEvents(data), [data]);
 

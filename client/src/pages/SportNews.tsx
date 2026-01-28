@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
@@ -6,15 +6,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
-import { espnNewsUrl } from "@/lib/espnApi";
-import { useEspnResource } from "@/hooks/useEspnResource";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
   return sportKeys.includes(v);
 }
 
-function normalizeArticles(data: any) {
+interface Article {
+  id: string;
+  headline: string;
+  description: string;
+  published: string;
+  byline: string;
+  img?: string;
+  link?: string;
+}
+
+function normalizeArticles(data: any): Article[] {
   const articles = data?.articles ?? [];
   return articles
     .map((a: any) => {
@@ -29,7 +37,7 @@ function normalizeArticles(data: any) {
         link: a?.links?.web?.href || a?.links?.api?.news?.href,
       };
     })
-    .filter((a: any) => a.headline);
+    .filter((a: Article) => a.headline);
 }
 
 export default function SportNews() {
@@ -38,8 +46,29 @@ export default function SportNews() {
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const cfg = getSportConfig(sportKey);
 
-  const url = cfg ? espnNewsUrl(cfg.apiPath, 30) : null;
-  const { data, loading, error } = useEspnResource<any>(`news-${sportKey}`, url, { intervalMs: 3 * 60_000 });
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`/api/espn/news/${sportKey}?limit=30`);
+        if (!res.ok) throw new Error(`Failed to fetch news (${res.status})`);
+        const json = await res.json();
+        if (mounted) setData(json);
+      } catch (e: any) {
+        if (mounted) setError(e?.message ?? "Failed to load news");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, [sportKey]);
 
   const articles = useMemo(() => normalizeArticles(data), [data]);
 

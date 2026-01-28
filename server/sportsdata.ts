@@ -207,3 +207,84 @@ export async function getEspnTeamRoster(sport: string, teamId: string) {
   const path = sportPaths[sport] || "football/nfl";
   return fetchEspn(`${ESPN_BASE}/${path}/teams/${teamId}/roster`, 5 * 60_000);
 }
+
+export async function getEspnTeams(sport: string, groups?: string) {
+  const sportPaths: Record<string, string> = {
+    nfl: "football/nfl",
+    nba: "basketball/nba",
+    mlb: "baseball/mlb",
+    ncaaf: "football/college-football",
+    ncaab: "basketball/mens-college-basketball",
+    ufc: "mma/ufc"
+  };
+  const path = sportPaths[sport] || "football/nfl";
+  const groupParam = groups ? `?groups=${groups}` : "";
+  return fetchEspn(`${ESPN_BASE}/${path}/teams${groupParam}`, 60 * 60_000);
+}
+
+export async function getEspnStandings(sport: string) {
+  const sportPaths: Record<string, string> = {
+    nfl: "football/nfl",
+    nba: "basketball/nba",
+    mlb: "baseball/mlb",
+    ncaaf: "football/college-football",
+    ncaab: "basketball/mens-college-basketball",
+    ufc: "mma/ufc"
+  };
+  const path = sportPaths[sport] || "football/nfl";
+  return fetchEspn(`${ESPN_BASE}/${path}/standings`, 5 * 60_000);
+}
+
+export async function getEspnScoreboard(sport: string, date?: string) {
+  const sportPaths: Record<string, string> = {
+    nfl: "football/nfl",
+    nba: "basketball/nba",
+    mlb: "baseball/mlb",
+    ncaaf: "football/college-football",
+    ncaab: "basketball/mens-college-basketball",
+    ufc: "mma/ufc"
+  };
+  const path = sportPaths[sport] || "football/nfl";
+  const dateParam = date ? `?dates=${date}` : "";
+  return fetchEspn(`${ESPN_BASE}/${path}/scoreboard${dateParam}`, 60_000);
+}
+
+export async function getEspnNews(sport: string, limit = 30) {
+  const sportPaths: Record<string, string> = {
+    nfl: "football/nfl",
+    nba: "basketball/nba",
+    mlb: "baseball/mlb",
+    ncaaf: "football/college-football",
+    ncaab: "basketball/mens-college-basketball",
+    ufc: "mma/ufc"
+  };
+  const path = sportPaths[sport] || "football/nfl";
+  return fetchEspn(`${ESPN_BASE}/${path}/news?limit=${limit}`, 5 * 60_000);
+}
+
+export async function getEspnLeaders(sport: string) {
+  const sportPaths: Record<string, string> = {
+    nfl: "football/nfl",
+    nba: "basketball/nba",
+    mlb: "baseball/mlb",
+    ncaaf: "football/college-football",
+    ncaab: "basketball/mens-college-basketball",
+    ufc: "mma/ufc"
+  };
+  const path = sportPaths[sport] || "football/nfl";
+  // Leaders is on v3 for most leagues
+  return fetchEspn(`https://site.api.espn.com/apis/site/v3/sports/${path}/leaders`, 10 * 60_000);
+}
+
+export async function getEspnRankings(sport: string) {
+  const sportPaths: Record<string, string> = {
+    nfl: "football/nfl",
+    nba: "basketball/nba",
+    mlb: "baseball/mlb",
+    ncaaf: "football/college-football",
+    ncaab: "basketball/mens-college-basketball",
+    ufc: "mma/ufc"
+  };
+  const path = sportPaths[sport] || "football/nfl";
+  return fetchEspn(`${ESPN_BASE}/${path}/rankings`, 10 * 60_000);
+}

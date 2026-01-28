@@ -1,30 +1,33 @@
 import { useRoute } from "wouter";
+import { useEffect, useState, useMemo } from "react";
 import { AlertCircle, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
-import { espnStandingsUrl } from "@/lib/espnApi";
-import { useEspnResource } from "@/hooks/useEspnResource";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
   return sportKeys.includes(v);
 }
 
-function pickStandingsRows(data: any) {
+interface StandingsEntry {
+  id: string;
+  teamName: string;
+  teamAbbr: string;
+  logo?: string;
+  rank?: string;
+  stats: Record<string, string>;
+}
+
+interface StandingsGroup {
+  groupName: string;
+  entries: StandingsEntry[];
+}
+
+function pickStandingsRows(data: any): StandingsGroup[] {
   const groups = data?.children ?? [];
-  const out: Array<{
-    groupName: string;
-    entries: Array<{
-      id: string;
-      teamName: string;
-      teamAbbr: string;
-      logo?: string;
-      rank?: string;
-      stats: Record<string, string>;
-    }>;
-  }> = [];
+  const out: StandingsGroup[] = [];
 
   for (const g of groups) {
     const groupName = g?.name ?? "";
@@ -59,12 +62,33 @@ export default function SportStandings() {
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const cfg = getSportConfig(sportKey);
 
-  const url = cfg ? espnStandingsUrl(cfg.apiPath) : null;
-  const { data, loading, error } = useEspnResource<any>(`standings-${sportKey}`, url, { intervalMs: 5 * 60_000 });
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`/api/espn/standings/${sportKey}`);
+        if (!res.ok) throw new Error(`Failed to fetch standings (${res.status})`);
+        const json = await res.json();
+        if (mounted) setData(json);
+      } catch (e: any) {
+        if (mounted) setError(e?.message ?? "Failed to load standings");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, [sportKey]);
 
   if (!match || !cfg) return null;
 
-  const groups = pickStandingsRows(data);
+  const groups = useMemo(() => pickStandingsRows(data), [data]);
   const columns = [
     { key: "W", label: "W" },
     { key: "L", label: "L" },

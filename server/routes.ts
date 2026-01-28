@@ -247,5 +247,68 @@ export async function registerRoutes(
     }
   });
 
+  // ESPN teams list with optional groups parameter
+  app.get("/api/espn/teams/:sport", async (req, res, next) => {
+    try {
+      const groups = req.query.groups as string | undefined;
+      const data = await sportsdata.getEspnTeams(req.params.sport, groups);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN standings proxy
+  app.get("/api/espn/standings/:sport", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnStandings(req.params.sport);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN scoreboard proxy
+  app.get("/api/espn/scoreboard/:sport", async (req, res, next) => {
+    try {
+      const date = req.query.dates as string | undefined;
+      const data = await sportsdata.getEspnScoreboard(req.params.sport, date);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN news proxy
+  app.get("/api/espn/news/:sport", async (req, res, next) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 30;
+      const data = await sportsdata.getEspnNews(req.params.sport, limit);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN leaders/stats proxy
+  app.get("/api/espn/leaders/:sport", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnLeaders(req.params.sport);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN rankings proxy
+  app.get("/api/espn/rankings/:sport", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnRankings(req.params.sport);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return httpServer;
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { AlertCircle, ChevronRight } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
@@ -6,19 +6,31 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
-import { espnLeadersUrl } from "@/lib/espnApi";
-import { useEspnResource } from "@/hooks/useEspnResource";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
   return sportKeys.includes(v);
 }
 
-function normalizeLeaderCategories(data: any) {
-  // Handle multiple possible data structures from ESPN API
+interface Leader {
+  id: string;
+  athleteName: string;
+  teamAbbr: string;
+  teamName: string;
+  headshot?: string;
+  value: string;
+  rank: string;
+}
+
+interface LeaderCategory {
+  name: string;
+  shortName?: string;
+  leaders: Leader[];
+}
+
+function normalizeLeaderCategories(data: any): LeaderCategory[] {
   let categories: any[] = [];
   
-  // Try different paths to find categories array
   if (Array.isArray(data?.categories)) {
     categories = data.categories;
   } else if (Array.isArray(data?.leaders)) {
@@ -26,16 +38,13 @@ function normalizeLeaderCategories(data: any) {
   } else if (data?.categories?.categories && Array.isArray(data.categories.categories)) {
     categories = data.categories.categories;
   } else if (data?.id && data?.categories) {
-    // Data is a single category object
     const innerCats = data.categories;
     if (Array.isArray(innerCats)) {
       categories = innerCats;
     }
   }
   
-  // Ensure categories is an array
   if (!Array.isArray(categories)) {
-    console.warn("Categories is not an array:", typeof categories);
     return [];
   }
   
@@ -60,7 +69,7 @@ function normalizeLeaderCategories(data: any) {
         };
       }) : [],
     };
-  }).filter((c: any) => c.leaders.length > 0);
+  }).filter((c: LeaderCategory) => c.leaders.length > 0);
 }
 
 export default function SportStats() {
@@ -69,8 +78,29 @@ export default function SportStats() {
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const cfg = getSportConfig(sportKey);
 
-  const url = cfg ? espnLeadersUrl(cfg.apiPath) : null;
-  const { data, loading, error } = useEspnResource<any>(`leaders-${sportKey}`, url, { intervalMs: 5 * 60_000 });
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`/api/espn/leaders/${sportKey}`);
+        if (!res.ok) throw new Error(`Failed to fetch leaders (${res.status})`);
+        const json = await res.json();
+        if (mounted) setData(json);
+      } catch (e: any) {
+        if (mounted) setError(e?.message ?? "Failed to load stats");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, [sportKey]);
 
   const categories = useMemo(() => normalizeLeaderCategories(data), [data]);
   const [active, setActive] = useState(0);
@@ -103,7 +133,7 @@ export default function SportStats() {
               <AlertCircle className="h-4 w-4" /> {error}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              ESPN\u2019s leaders endpoint is inconsistent per league. If this stays unavailable, we can fall back to team stats or the core API.
+              Some leagues may not have full stats available during offseason.
             </div>
           </div>
         )}
@@ -121,7 +151,7 @@ export default function SportStats() {
             <Card className="bg-card border-border p-4 h-fit" data-testid="card-stats-categories">
               <div className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Categories</div>
               <div className="grid gap-2">
-                {categories.map((c: any, idx: number) => {
+                {categories.map((c, idx) => {
                   const isActive = idx === active;
                   return (
                     <Button
@@ -163,7 +193,7 @@ export default function SportStats() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(categories[active]?.leaders ?? []).map((l: any, idx: number) => (
+                    {(categories[active]?.leaders ?? []).map((l, idx) => (
                       <tr
                         key={`${l.id}-${idx}`}
                         className="border-t border-border/70 hover:bg-secondary/5 transition-colors"
@@ -186,9 +216,9 @@ export default function SportStats() {
                           </div>
                         </td>
                         <td className="px-5 py-3 text-muted-foreground" data-testid={`text-stats-team-${idx}`}>
-                          {l.teamAbbr || l.teamName || "\u2014"}
+                          {l.teamAbbr || l.teamName || "—"}
                         </td>
-                        <td className="px-5 py-3 text-right font-mono font-black" data-testid={`text-stats-value-${idx}`}>{l.value || "\u2014"}</td>
+                        <td className="px-5 py-3 text-right font-mono font-black" data-testid={`text-stats-value-${idx}`}>{l.value || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

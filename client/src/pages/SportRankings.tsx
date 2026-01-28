@@ -1,19 +1,31 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { AlertCircle, ChevronRight } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
-import { espnRankingsUrl } from "@/lib/espnApi";
-import { useEspnResource } from "@/hooks/useEspnResource";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
   return sportKeys.includes(v);
 }
 
-function normalizeRankings(data: any) {
+interface RankTeam {
+  rank: string;
+  teamName: string;
+  abbr: string;
+  logo?: string;
+  record: string;
+  points: string;
+}
+
+interface RankingGroup {
+  name: string;
+  ranks: RankTeam[];
+}
+
+function normalizeRankings(data: any): RankingGroup[] {
   const rankings = data?.rankings ?? [];
   return rankings.map((r: any) => {
     const ranks = r?.ranks ?? [];
@@ -37,8 +49,29 @@ export default function SportRankings() {
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const cfg = getSportConfig(sportKey);
 
-  const url = cfg ? espnRankingsUrl(cfg.apiPath) : null;
-  const { data, loading, error } = useEspnResource<any>(`rankings-${sportKey}`, url, { intervalMs: 10 * 60_000 });
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`/api/espn/rankings/${sportKey}`);
+        if (!res.ok) throw new Error(`Failed to fetch rankings (${res.status})`);
+        const json = await res.json();
+        if (mounted) setData(json);
+      } catch (e: any) {
+        if (mounted) setError(e?.message ?? "Failed to load rankings");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, [sportKey]);
 
   const groups = useMemo(() => normalizeRankings(data), [data]);
 
@@ -82,7 +115,7 @@ export default function SportRankings() {
 
         <div className="space-y-8">
           {!loading &&
-            groups.map((g: any, gi: number) => (
+            groups.map((g, gi) => (
               <Card key={gi} className="bg-card border-border overflow-hidden" data-testid={`card-rankings-${gi}`}>
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
                   <div className="font-heading uppercase tracking-wider font-bold">{g.name}</div>
@@ -102,7 +135,7 @@ export default function SportRankings() {
                       </tr>
                     </thead>
                     <tbody>
-                      {g.ranks.map((r: any, ri: number) => (
+                      {g.ranks.map((r, ri) => (
                         <tr key={`${r.rank}-${ri}`} className="border-t border-border/70 hover:bg-secondary/5 transition-colors" data-testid={`row-rank-${gi}-${ri}`}>
                           <td className="px-5 py-3 font-mono" data-testid={`text-rank-${gi}-${ri}`}>{r.rank}</td>
                           <td className="px-5 py-3">

@@ -1,29 +1,30 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { AlertCircle, ChevronRight } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SPORTS, type EspnSportKey, getSportConfig, espnScoreboardUrl } from "@/lib/espn";
-import { useEspnResource } from "@/hooks/useEspnResource";
+import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
   return sportKeys.includes(v);
 }
 
-function normalizeOdds(data: any) {
+interface OddsRow {
+  id: string;
+  label: string;
+  status: string;
+  provider: string;
+  details: string;
+  overUnder?: string;
+  spread?: string;
+}
+
+function normalizeOdds(data: any): OddsRow[] {
   const events = data?.events ?? [];
-  const rows: Array<{
-    id: string;
-    label: string;
-    status: string;
-    provider: string;
-    details: string;
-    overUnder?: string;
-    spread?: string;
-  }> = [];
+  const rows: OddsRow[] = [];
 
   for (const e of events) {
     const comp = e?.competitions?.[0];
@@ -49,8 +50,30 @@ export default function SportOdds() {
   const sportKey: EspnSportKey = isSportKey(sport) ? sport : "nfl";
   const cfg = getSportConfig(sportKey);
 
-  const url = cfg ? espnScoreboardUrl(cfg.apiPath) : null;
-  const { data, loading, error } = useEspnResource<any>(`odds-${sportKey}`, url, { intervalMs: 60_000 });
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`/api/espn/scoreboard/${sportKey}`);
+        if (!res.ok) throw new Error(`Failed to fetch odds (${res.status})`);
+        const json = await res.json();
+        if (mounted) setData(json);
+      } catch (e: any) {
+        if (mounted) setError(e?.message ?? "Failed to load odds");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    const interval = setInterval(load, 60_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [sportKey]);
 
   const rows = useMemo(() => normalizeOdds(data), [data]);
 
@@ -89,7 +112,7 @@ export default function SportOdds() {
         {!loading && !rows.length && (
           <Card className="p-6 bg-card border-border" data-testid="empty-odds">
             <div className="text-sm text-muted-foreground">
-              No odds available for the current slate (ESPN doesn’t provide odds for every sport/event).
+              No odds available for the current slate (ESPN doesn't provide odds for every sport/event).
             </div>
             <div className="mt-4">
               <Link href={`/sport/${sportKey}/scores`} data-testid="link-odds-scores" className="block">
