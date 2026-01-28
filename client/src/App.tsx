@@ -17,6 +17,14 @@ import ArticleDetail from "@/pages/ArticleDetail";
 import EpisodeDetail from "@/pages/EpisodeDetail";
 import SportScores from "@/pages/SportScores";
 import GameDetail from "@/pages/GameDetail";
+import SportHome from "@/pages/SportHome";
+import SportStandings from "@/pages/SportStandings";
+import SportTeams from "@/pages/SportTeams";
+import SportSchedule from "@/pages/SportSchedule";
+import SportNews from "@/pages/SportNews";
+import SportOdds from "@/pages/SportOdds";
+import SportStats from "@/pages/SportStats";
+import SportRankings from "@/pages/SportRankings";
 
 function Router() {
   const [location] = useLocation();
@@ -36,8 +44,16 @@ function Router() {
           <Route path="/scores" component={Scores} />
 
           {/* ESPN-like sport hubs */}
+          <Route path="/sport/:sport" component={SportHome} />
           <Route path="/sport/:sport/scores" component={SportScores} />
           <Route path="/sport/:sport/game/:id" component={GameDetail} />
+          <Route path="/sport/:sport/standings" component={SportStandings} />
+          <Route path="/sport/:sport/stats" component={SportStats} />
+          <Route path="/sport/:sport/teams" component={SportTeams} />
+          <Route path="/sport/:sport/schedule" component={SportSchedule} />
+          <Route path="/sport/:sport/news" component={SportNews} />
+          <Route path="/sport/:sport/odds" component={SportOdds} />
+          <Route path="/sport/:sport/rankings" component={SportRankings} />
 
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
