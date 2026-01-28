@@ -159,11 +159,16 @@ export default function GameDetail() {
                 </div>
 
                 {header.link && (
-                  <a href={header.link} target="_blank" rel="noreferrer">
-                    <Button data-testid="button-open-espn" variant="outline" className="gap-2 uppercase font-bold tracking-wider">
+                  <Button
+                    data-testid="button-open-espn"
+                    variant="outline"
+                    className="gap-2 uppercase font-bold tracking-wider"
+                    asChild
+                  >
+                    <a href={header.link} target="_blank" rel="noreferrer">
                       Open on ESPN <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </a>
+                    </a>
+                  </Button>
                 )}
               </div>
             )}

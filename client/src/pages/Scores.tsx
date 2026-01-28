@@ -30,22 +30,20 @@ export default function Scores() {
       <div className="container px-4 md:px-6 py-10">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {sports.map((s) => (
-            <Link key={s.key} href={s.href}>
-              <a data-testid={`card-sport-${s.key}`} className="block">
-                <Card className="relative overflow-hidden border-border p-6 bg-card hover:shadow-xl hover:shadow-primary/10 transition-all group">
-                  <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-primary/15 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-black uppercase tracking-widest text-primary">Scores Hub</div>
-                      <div className="mt-2 font-heading text-3xl font-black uppercase italic tracking-tight">{s.label}</div>
-                      <div className="mt-2 text-sm text-muted-foreground">Scores • News • Standings • Stats</div>
-                    </div>
-                    <Badge className="bg-secondary/10 text-muted-foreground border-border uppercase tracking-widest text-[10px] font-black rounded-sm">
-                      Open
-                    </Badge>
+            <Link key={s.key} href={s.href} data-testid={`card-sport-${s.key}`} className="block">
+              <Card className="relative overflow-hidden border-border p-6 bg-card hover:shadow-xl hover:shadow-primary/10 transition-all group">
+                <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-primary/15 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-widest text-primary">Scores Hub</div>
+                    <div className="mt-2 font-heading text-3xl font-black uppercase italic tracking-tight">{s.label}</div>
+                    <div className="mt-2 text-sm text-muted-foreground">Scores • News • Standings • Stats</div>
                   </div>
-                </Card>
-              </a>
+                  <Badge className="bg-secondary/10 text-muted-foreground border-border uppercase tracking-widest text-[10px] font-black rounded-sm">
+                    Open
+                  </Badge>
+                </div>
+              </Card>
             </Link>
           ))}
         </div>

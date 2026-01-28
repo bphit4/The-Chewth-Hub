@@ -59,70 +59,68 @@ export default function SportScores() {
             loading ? (
               <Card key={idx} className="h-40 animate-pulse bg-card" />
             ) : (
-              <Link key={g.id} href={`/sport/${sportKey}/game/${g.id}`}>
-                <a data-testid={`card-game-${g.id}`} className="block">
-                  <Card className="bg-card border-l-4 border-l-primary p-5 hover:shadow-xl hover:shadow-primary/10 transition-all group relative overflow-hidden">
-                    <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-accent/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="flex justify-between items-center mb-5 pb-2 border-b border-border/60">
-                      <span className="font-bold text-xs text-primary uppercase tracking-widest">{cfg.label}</span>
-                      <Badge
-                        className={cn(
-                          "rounded-sm uppercase text-[10px] font-black px-2 py-0.5",
-                          g.state === "in" ? "bg-primary text-primary-foreground" : "bg-secondary/10 text-muted-foreground"
+              <Link key={g.id} href={`/sport/${sportKey}/game/${g.id}`} data-testid={`card-game-${g.id}`} className="block">
+                <Card className="bg-card border-l-4 border-l-primary p-5 hover:shadow-xl hover:shadow-primary/10 transition-all group relative overflow-hidden">
+                  <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-accent/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex justify-between items-center mb-5 pb-2 border-b border-border/60">
+                    <span className="font-bold text-xs text-primary uppercase tracking-widest">{cfg.label}</span>
+                    <Badge
+                      className={cn(
+                        "rounded-sm uppercase text-[10px] font-black px-2 py-0.5",
+                        g.state === "in" ? "bg-primary text-primary-foreground" : "bg-secondary/10 text-muted-foreground"
+                      )}
+                    >
+                      {g.status}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {g.away.logo ? (
+                          <img src={g.away.logo} alt="" className="h-8 w-8 object-contain" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
+                            {g.away.abbr}
+                          </div>
                         )}
-                      >
-                        {g.status}
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {g.away.logo ? (
-                            <img src={g.away.logo} alt="" className="h-8 w-8 object-contain" />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
-                              {g.away.abbr}
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-bold leading-tight">{g.away.name}</div>
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.away.abbr}</div>
-                          </div>
-                        </div>
-                        <div className={cn("font-mono text-3xl font-black", (g.away.score ?? 0) > (g.home.score ?? 0) ? "text-accent" : "text-foreground/70")}>
-                          {g.away.score ?? "-"}
+                        <div>
+                          <div className="font-bold leading-tight">{g.away.name}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.away.abbr}</div>
                         </div>
                       </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {g.home.logo ? (
-                            <img src={g.home.logo} alt="" className="h-8 w-8 object-contain" />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
-                              {g.home.abbr}
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-bold leading-tight">{g.home.name}</div>
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.home.abbr}</div>
-                          </div>
-                        </div>
-                        <div className={cn("font-mono text-3xl font-black", (g.home.score ?? 0) > (g.away.score ?? 0) ? "text-accent" : "text-foreground/70")}>
-                          {g.home.score ?? "-"}
-                        </div>
+                      <div className={cn("font-mono text-3xl font-black", (g.away.score ?? 0) > (g.home.score ?? 0) ? "text-accent" : "text-foreground/70")}>
+                        {g.away.score ?? "-"}
                       </div>
                     </div>
 
-                    <div className="mt-5 flex items-center justify-between">
-                      <div className="text-xs text-muted-foreground">Click for box score & stats</div>
-                      <Button size="sm" variant="outline" className="uppercase font-bold tracking-wider">
-                        Box Score
-                      </Button>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {g.home.logo ? (
+                          <img src={g.home.logo} alt="" className="h-8 w-8 object-contain" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
+                            {g.home.abbr}
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-bold leading-tight">{g.home.name}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.home.abbr}</div>
+                        </div>
+                      </div>
+                      <div className={cn("font-mono text-3xl font-black", (g.home.score ?? 0) > (g.away.score ?? 0) ? "text-accent" : "text-foreground/70")}>
+                        {g.home.score ?? "-"}
+                      </div>
                     </div>
-                  </Card>
-                </a>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">Click for box score & stats</div>
+                    <Button size="sm" variant="outline" className="uppercase font-bold tracking-wider" data-testid={`button-boxscore-${g.id}`}>
+                      Box Score
+                    </Button>
+                  </div>
+                </Card>
               </Link>
             )
           )}
