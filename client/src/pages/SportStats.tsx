@@ -16,12 +16,19 @@ function isSportKey(v: any): v is EspnSportKey {
 
 function normalizeLeaderCategories(data: any) {
   const categories = data?.categories ?? data?.leaders ?? [];
-  return (categories ?? []).map((c: any) => {
+  
+  // Ensure categories is an array
+  if (!Array.isArray(categories)) {
+    console.warn("Categories is not an array:", categories);
+    return [];
+  }
+  
+  return categories.map((c: any) => {
     const leaders = c?.leaders ?? [];
     return {
       name: c?.displayName ?? c?.name ?? "Leaders",
       shortName: c?.shortDisplayName ?? c?.shortName,
-      leaders: leaders.map((l: any, idx: number) => {
+      leaders: Array.isArray(leaders) ? leaders.map((l: any, idx: number) => {
         const athlete = l?.athlete ?? l?.athletes?.[0] ?? {};
         const team = l?.team ?? athlete?.team ?? {};
         const stat = l?.statValue ?? l?.displayValue ?? l?.value;
@@ -35,7 +42,7 @@ function normalizeLeaderCategories(data: any) {
           value: val,
           rank: l?.rank != null ? String(l.rank) : String(idx + 1),
         };
-      }),
+      }) : [],
     };
   });
 }
