@@ -9,11 +9,16 @@ export function SportSubnav({ sportKey }: { sportKey: EspnSportKey }) {
 
   if (!cfg) return null;
 
+  // Keep all tabs but rename "Home" to "Hub" for clarity
+  const tabs = cfg.scoresTabs.map(t => 
+    t.key === "home" ? { ...t, label: "Hub" } : t
+  );
+
   return (
-    <div className="sticky top-16 z-40 border-b border-border bg-background/80 backdrop-blur">
+    <div className="sticky top-12 z-40 border-b border-border/50 bg-background">
       <div className="container px-4 md:px-6">
-        <div className="flex items-center gap-6 overflow-x-auto py-3">
-          {cfg.scoresTabs.map((t) => {
+        <div className="flex items-center gap-1 overflow-x-auto py-0 -mb-px">
+          {tabs.map((t) => {
             const href = t.href(sportKey);
             const active = location === href;
             return (
@@ -22,8 +27,10 @@ export function SportSubnav({ sportKey }: { sportKey: EspnSportKey }) {
                 href={href}
                 data-testid={`link-sporttab-${sportKey}-${t.key}`}
                 className={cn(
-                  "whitespace-nowrap text-sm font-bold uppercase tracking-wider transition-colors",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  "whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2",
+                  active 
+                    ? "text-primary border-primary" 
+                    : "text-muted-foreground hover:text-foreground border-transparent"
                 )}
               >
                 {t.label}

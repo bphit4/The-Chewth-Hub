@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useRoute } from "wouter";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -109,22 +109,16 @@ export default function SportStats() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="bg-secondary py-10 border-b border-white/10 relative overflow-hidden">
-        <div className="absolute inset-0 bg-primary/10 mix-blend-overlay" />
-        <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex items-center gap-3 text-white/80 text-sm font-bold uppercase tracking-widest">
-            <span>The Chewth</span>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-white">{cfg.label}</span>
-          </div>
-          <h1 className="mt-2 text-3xl md:text-5xl font-heading font-black text-white uppercase italic tracking-tighter">
-            {cfg.label} <span className="text-primary">Stats</span>
+      <SportSubnav sportKey={sportKey} />
+      
+      {/* Page Title */}
+      <div className="border-b border-border/50 bg-card/50">
+        <div className="container px-4 md:px-6 py-4">
+          <h1 className="text-xl md:text-2xl font-heading font-black uppercase tracking-tight">
+            {cfg.label} Stats
           </h1>
-          <p className="text-white/70 mt-2">Player leaderboards (full tables per category).</p>
         </div>
       </div>
-
-      <SportSubnav sportKey={sportKey} />
 
       <div className="container px-4 md:px-6 py-8">
         {error && (

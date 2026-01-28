@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, ChevronRight, CalendarIcon, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { AlertCircle, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { cn } from "@/lib/utils";
 import { SPORTS, type EspnSportKey } from "@/lib/espn";
@@ -233,22 +233,16 @@ export default function SportScores() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="bg-secondary py-10 border-b border-white/10 relative overflow-hidden">
-        <div className="absolute inset-0 bg-primary/10 mix-blend-overlay" />
-        <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex items-center gap-3 text-white/80 text-sm font-bold uppercase tracking-widest">
-            <span>The Chewth</span>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-white">{cfg.label}</span>
-          </div>
-          <h1 className="mt-2 text-3xl md:text-5xl font-heading font-black text-white uppercase italic tracking-tighter">
-            {cfg.label} <span className="text-primary">Scores</span>
+      <SportSubnav sportKey={sportKey} />
+      
+      {/* Page Title */}
+      <div className="border-b border-border/50 bg-card/50">
+        <div className="container px-4 md:px-6 py-4">
+          <h1 className="text-xl md:text-2xl font-heading font-black uppercase tracking-tight">
+            {cfg.label} Scoreboard
           </h1>
-          <p className="text-white/70 mt-2">Auto-refreshes every 30 seconds.</p>
         </div>
       </div>
-
-      <SportSubnav sportKey={sportKey} />
 
       {/* Week Navigation for NFL and CFB */}
       {isWeekBasedSport && weeks.length > 0 && (
@@ -294,7 +288,7 @@ export default function SportScores() {
                 className="shrink-0 h-8 w-8"
                 data-testid="button-week-scroll-right"
               >
-                <ChevronRightIcon className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -345,7 +339,7 @@ export default function SportScores() {
               data-testid="button-next-day"
               className="hover:bg-primary/10"
             >
-              <ChevronRightIcon className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" />
             </Button>
 
             <Button
@@ -387,71 +381,83 @@ export default function SportScores() {
           </div>
         )}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {(loading ? Array(9).fill(0) : games).map((g: any, idx: number) =>
             loading ? (
-              <Card key={idx} className="h-40 animate-pulse bg-card" />
+              <Card key={idx} className="h-32 animate-pulse bg-card" />
             ) : !g || !g.away || !g.home ? null : (
-              <Link key={g.id} href={`/sport/${sportKey}/game/${g.id}`} data-testid={`card-game-${g.id}`} className="block">
-                <Card className="bg-card border-l-4 border-l-primary p-5 hover:shadow-xl hover:shadow-primary/10 transition-all group relative overflow-hidden">
-                  <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-accent/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex justify-between items-center mb-5 pb-2 border-b border-border/60">
-                    <span className="font-bold text-xs text-primary uppercase tracking-widest">{cfg.label}</span>
+              <Link key={g.id} href={`/sport/${sportKey}/game/${g.id}`} data-testid={`card-game-${g.id}`} className="block group">
+                <Card className="bg-card hover:bg-accent/5 border border-border/60 hover:border-border transition-all overflow-hidden">
+                  {/* Status bar */}
+                  <div className="flex justify-between items-center px-4 py-2 bg-muted/30 border-b border-border/40">
                     <Badge
+                      variant="secondary"
                       className={cn(
-                        "rounded-sm uppercase text-[10px] font-black px-2 py-0.5",
-                        g.state === "in" ? "bg-primary text-primary-foreground" : "bg-secondary/10 text-muted-foreground"
+                        "rounded text-[10px] font-bold px-2 py-0.5",
+                        g.state === "in" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground"
                       )}
                     >
                       {g.status}
                     </Badge>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="p-4 space-y-3">
+                    {/* Away Team */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {g.away?.logo ? (
-                          <img src={g.away.logo} alt="" className="h-8 w-8 object-contain" />
+                          <img src={g.away.logo} alt="" className="h-6 w-6 object-contain" />
                         ) : (
-                          <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
-                            {g.away?.abbr || "A"}
+                          <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">
+                            {g.away?.abbr?.charAt(0) || "A"}
                           </div>
                         )}
-                        <div>
-                          <div className="font-bold leading-tight">{g.away?.name || "Away"}</div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.away?.abbr || "AWAY"}</div>
+                        <div className="flex items-center gap-2">
+                          {g.away?.rank && g.away.rank <= 25 && (
+                            <span className="text-xs text-muted-foreground font-bold">{g.away.rank}</span>
+                          )}
+                          <span className="font-bold text-sm">{g.away?.name || "Away"}</span>
                         </div>
                       </div>
-                      <div className={cn("font-mono text-3xl font-black", (g.away?.score ?? 0) > (g.home?.score ?? 0) ? "text-accent" : "text-foreground/70")}>
+                      <div className={cn(
+                        "font-mono text-xl font-black tabular-nums", 
+                        g.state === "post" && (g.away?.score ?? 0) > (g.home?.score ?? 0) ? "text-foreground" : "text-muted-foreground"
+                      )}>
                         {g.away?.score ?? "-"}
                       </div>
                     </div>
 
+                    {/* Home Team */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {g.home?.logo ? (
-                          <img src={g.home.logo} alt="" className="h-8 w-8 object-contain" />
+                          <img src={g.home.logo} alt="" className="h-6 w-6 object-contain" />
                         ) : (
-                          <div className="h-8 w-8 rounded-full bg-secondary/10 grid place-items-center font-heading font-bold text-xs">
-                            {g.home?.abbr || "H"}
+                          <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">
+                            {g.home?.abbr?.charAt(0) || "H"}
                           </div>
                         )}
-                        <div>
-                          <div className="font-bold leading-tight">{g.home?.name || "Home"}</div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{g.home?.abbr || "HOME"}</div>
+                        <div className="flex items-center gap-2">
+                          {g.home?.rank && g.home.rank <= 25 && (
+                            <span className="text-xs text-muted-foreground font-bold">{g.home.rank}</span>
+                          )}
+                          <span className="font-bold text-sm">{g.home?.name || "Home"}</span>
                         </div>
                       </div>
-                      <div className={cn("font-mono text-3xl font-black", (g.home?.score ?? 0) > (g.away?.score ?? 0) ? "text-accent" : "text-foreground/70")}>
+                      <div className={cn(
+                        "font-mono text-xl font-black tabular-nums", 
+                        g.state === "post" && (g.home?.score ?? 0) > (g.away?.score ?? 0) ? "text-foreground" : "text-muted-foreground"
+                      )}>
                         {g.home?.score ?? "-"}
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between">
-                    <div className="text-xs text-muted-foreground">Click for box score & stats</div>
-                    <Button size="sm" variant="outline" className="uppercase font-bold tracking-wider" data-testid={`button-boxscore-${g.id}`}>
-                      Box Score
-                    </Button>
+                  {/* Footer */}
+                  <div className="px-4 py-2 border-t border-border/40 bg-muted/20">
+                    <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">
+                      Gamecast →
+                    </span>
                   </div>
                 </Card>
               </Link>
