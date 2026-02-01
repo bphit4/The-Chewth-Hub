@@ -174,6 +174,11 @@ export type ChewthGame = {
   home: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string };
   away: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string };
   groups?: string[];
+  /**
+   * Optional event headline describing the game or bowl/championship title.
+   * Examples include "Big Ten Championship" or "The Myrtle Beach Bowl".
+   */
+  headline?: string;
 };
 
 export function mapEspnEventToGame(event: EspnScoreboardEvent, sportKey: EspnSportKey, leagueLabel: string): ChewthGame {

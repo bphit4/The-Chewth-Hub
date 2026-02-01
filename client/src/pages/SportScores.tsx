@@ -192,7 +192,7 @@ export default function SportScores() {
   const isMma = sportKey === "ufc";
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEndDate, setSelectedEndDate] = useState<Date | undefined>(undefined);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<string>("all");
   const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
   const [weeks, setWeeks] = useState<WeekEntry[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<string>("");
@@ -205,6 +205,16 @@ export default function SportScores() {
 
   const isCollegeSport = sportKey === "ncaaf" || sportKey === "ncaab";
   const isWeekBasedSport = sportKey === "nfl" || sportKey === "ncaaf";
+
+  // Set default filter when sport changes
+  useEffect(() => {
+    // Default to All FBS for NCAAF; otherwise All
+    if (sportKey === "ncaaf") {
+      setFilter("fbs");
+    } else {
+      setFilter("all");
+    }
+  }, [sportKey]);
 
   // Load weeks for NFL and CFB; NCAAF always has fallback weeks if API fails or returns empty
   useEffect(() => {
@@ -272,7 +282,7 @@ export default function SportScores() {
       setConferences([]);
       return;
     }
-    
+
     async function loadConferences() {
       try {
         const res = await fetch(`/api/espn/groups/${sportKey}`);
@@ -445,7 +455,7 @@ export default function SportScores() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <SportSubnav sportKey={sportKey} />
-      
+
       {/* Page Title */}
       <div className="border-b border-border/50 bg-card/50">
         <div className="container px-4 md:px-6 py-4">
@@ -469,7 +479,7 @@ export default function SportScores() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              
+
               <div
                 ref={weekScrollRef}
                 className="flex gap-1 overflow-x-auto scrollbar-hide scroll-smooth flex-1"
@@ -491,7 +501,7 @@ export default function SportScores() {
                   </Button>
                 ))}
               </div>
-              
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -520,7 +530,7 @@ export default function SportScores() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -613,6 +623,12 @@ export default function SportScores() {
                             </Badge>
                           </div>
                           <div className="p-4 space-y-3">
+                            {/* Game/bowl headline */}
+                            {g.headline && (
+                              <div className="text-xs font-semibold uppercase text-primary">
+                                {g.headline}
+                              </div>
+                            )}
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 {g.away?.logo ? <img src={g.away.logo} alt="" className="h-6 w-6 object-contain" /> : <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">{g.away?.abbr?.charAt(0) || "A"}</div>}
@@ -669,6 +685,12 @@ export default function SportScores() {
                       <Badge variant="secondary" className={cn("rounded text-[10px] font-bold px-2 py-0.5", g.state === "in" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground")}>{g.status}</Badge>
                     </div>
                     <div className="p-4 space-y-3">
+                      {/* Game/bowl headline */}
+                      {g.headline && (
+                        <div className="text-xs font-semibold uppercase text-primary">
+                          {g.headline}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {g.away?.logo ? <img src={g.away.logo} alt="" className="h-6 w-6 object-contain" /> : <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">{g.away?.abbr?.charAt(0) || "A"}</div>}

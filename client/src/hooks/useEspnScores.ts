@@ -36,7 +36,14 @@ function normalizeEspnScoreboard(data: any, sportKey?: string): ChewthGame[] {
     const awayName = isMma ? (away?.athlete?.displayName ?? "Away") : (away?.team?.displayName ?? away?.team?.name ?? "Away");
     const homeAbbr = isMma ? (home?.athlete?.shortName ?? "HOME") : (home?.team?.abbreviation ?? "");
     const awayAbbr = isMma ? (away?.athlete?.shortName ?? "AWAY") : (away?.team?.abbreviation ?? "");
-    
+
+    // Extract event headline/bowl name
+    let headline: string | undefined;
+    if (Array.isArray(event?.notes)) {
+      const n = event.notes.find((n: any) => n?.type === 'event');
+      headline = n?.headline;
+    }
+
     return {
       id: event?.id ?? "",
       date: event?.date ?? "",
@@ -63,6 +70,7 @@ function normalizeEspnScoreboard(data: any, sportKey?: string): ChewthGame[] {
       groups: Array.isArray(event?.competitions?.[0]?.groups) 
         ? event.competitions[0].groups.map((g: any) => g?.id) 
         : [],
+      headline,
     };
   });
 }
