@@ -50,10 +50,22 @@ export function ncaafSeasonYear(): number {
   return month < 7 ? year - 1 : year;
 }
 
-/** Build a single WeekEntry with ISO start/end. */
-function weekEntry(label: string, startY: number, startM: number, startD: number, endY: number, endM: number, endD: number): WeekEntry {
-  const startDate = `${startY}-${String(startM).padStart(2, "0")}-${String(startD).padStart(2, "0")}T00:00:00.000Z`;
-  const endDate = `${endY}-${String(endM).padStart(2, "0")}-${String(endD).padStart(2, "0")}T23:59:59.999Z`;
+/** Build a single WeekEntry with ISO start/end.
+ *  ESPN defines weeks with a 7 AM UTC start and 6:59:59.999 AM UTC end. Using these 
+ *  boundaries ensures late-night games (ending after midnight Eastern) are grouped 
+ *  into the same week as ESPN's official calendar.
+ */
+function weekEntry(
+  label: string,
+  startY: number,
+  startM: number,
+  startD: number,
+  endY: number,
+  endM: number,
+  endD: number
+): WeekEntry {
+  const startDate = `${startY}-${String(startM).padStart(2, "0")}-${String(startD).padStart(2, "0")}T07:00:00.000Z`;
+  const endDate = `${endY}-${String(endM).padStart(2, "0")}-${String(endD).padStart(2, "0")}T06:59:59.999Z`;
   return {
     label,
     value: `${startY}-${String(startM).padStart(2, "0")}-${String(startD).padStart(2, "0")}`,
@@ -66,17 +78,17 @@ function weekEntry(label: string, startY: number, startM: number, startD: number
  * Fallback week list for NCAAF when ESPN returns an empty calendar.
  * Aligned with ESPN/CBS 2025-2026 FBS schedule:
  * - Week 0: Aug 23; Week 1: Aug 28–Sep 4; Weeks 2–14: Sep 5–Dec 4 (7-day blocks)
- * - Week 15: Conference Championship Dec 5–6; Week 16: Dec 7–13
- * - Bowls: mid-Dec–early Jan; CFP Semifinals; Championship Jan 19, 2026 (CBS/ESPN)
+ * - Week 15 (Conf. Champ): Dec 1–7; Week 16: Dec 8–12
+ * - Bowls: mid-Dec–early Jan; Semifinals; Championship Jan 19, 2026.
  */
 export function getNcaafFallbackWeeks(seasonYear?: number): WeekEntry[] {
   const y = seasonYear ?? ncaafSeasonYear();
   const weeks: WeekEntry[] = [];
 
-  // Week 0: Aug 23–27 (2025-26: Saturday Aug 23)
+  // Week 0: Aug 23–27
   weeks.push(weekEntry("Week 0", y, 8, 23, y, 8, 27));
 
-  // Week 1: Aug 28–Sep 4 (ESPN/CBS: Week 1 through first Thursday of Sep)
+  // Week 1: Aug 28–Sep 4 (Week 1 through first Thursday of Sep)
   weeks.push(weekEntry("Week 1", y, 8, 28, y, 9, 4));
 
   // Weeks 2–14: 7-day blocks, no gaps — Sep 5–11 through Nov 28–Dec 4
@@ -85,25 +97,27 @@ export function getNcaafFallbackWeeks(seasonYear?: number): WeekEntry[] {
     start.setUTCDate(start.getUTCDate() + (i - 2) * 7);
     const end = new Date(start);
     end.setUTCDate(end.getUTCDate() + 6);
-    weeks.push(weekEntry(
-      `Week ${i}`,
-      start.getUTCFullYear(),
-      start.getUTCMonth() + 1,
-      start.getUTCDate(),
-      end.getUTCFullYear(),
-      end.getUTCMonth() + 1,
-      end.getUTCDate()
-    ));
+    weeks.push(
+      weekEntry(
+        `Week ${i}`,
+        start.getUTCFullYear(),
+        start.getUTCMonth() + 1,
+        start.getUTCDate(),
+        end.getUTCFullYear(),
+        end.getUTCMonth() + 1,
+        end.getUTCDate()
+      )
+    );
   }
 
-  // Week 15: Conference Championship Dec 5–6 (CBS/ESPN)
-  weeks.push(weekEntry("Week 15 (Conf. Champ)", y, 12, 5, y, 12, 6));
+  // Week 15 (Conference Championship): Dec 1–7
+  weeks.push(weekEntry("Week 15 (Conf. Champ)", y, 12, 1, y, 12, 7));
 
-  // Week 16: Dec 7–13 (first week after conf champ; bowls begin mid-Dec)
-  weeks.push(weekEntry("Week 16", y, 12, 7, y, 12, 13));
+  // Week 16: Dec 8–12
+  weeks.push(weekEntry("Week 16", y, 12, 8, y, 12, 12));
 
-  // Postseason: Bowls (Dec 14–Jan 5), Semifinals (Jan 6–12), Championship (Jan 13–20; CFP title Jan 19)
-  weeks.push(weekEntry("Bowls", y, 12, 14, y + 1, 1, 5));
+  // Postseason: Bowls (Dec 13–Jan 5), Semifinals (Jan 6–12), Championship (Jan 13–20)
+  weeks.push(weekEntry("Bowls", y, 12, 13, y + 1, 1, 5));
   weeks.push(weekEntry("Semifinals", y + 1, 1, 6, y + 1, 1, 12));
   weeks.push(weekEntry("Championship", y + 1, 1, 13, y + 1, 1, 20));
 
