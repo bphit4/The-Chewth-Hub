@@ -26,14 +26,14 @@ export interface Article {
   content: string; // HTML content or rich text
   author: string;
   date: string;
-  category: 'NFL' | 'NBA' | 'CFB' | 'CBB' | 'MLB' | 'UFC';
+  category: 'NFL' | 'NBA' | 'CFB' | 'CBB' | 'MLB' | 'MMA';
   imageUrl: string;
   tags: string[];
 }
 
 export interface Score {
   id: string;
-  league: 'NFL' | 'NBA' | 'MLB' | 'CFB' | 'CBB' | 'UFC';
+  league: 'NFL' | 'NBA' | 'MLB' | 'CFB' | 'CBB' | 'MMA';
   status: 'Live' | 'Final' | 'Scheduled';
   time?: string;
   homeTeam: string;
@@ -106,14 +106,14 @@ export const ARTICLES: Article[] = [
   },
   {
     id: "art-3",
-    title: "UFC Fight Night: Main Event Breakdown",
+    title: "MMA Fight Night: Main Event Breakdown",
     excerpt: "A tactical look at this weekend's striker vs. grappler matchup.",
     content: "<p>Styles make fights, and this one is a classic clash...</p>",
     author: "Dan Combat",
     date: "Oct 12, 2025",
-    category: "UFC",
+    category: "MMA",
     imageUrl: "https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?w=800&auto=format&fit=crop&q=60",
-    tags: ["UFC", "MMA", "Preview"],
+    tags: ["MMA", "Preview"],
   },
   {
     id: "art-4",

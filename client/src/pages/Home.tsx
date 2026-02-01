@@ -40,7 +40,7 @@ export default function Home() {
                 The Chewth.
               </h1>
               <p className="max-w-[600px] text-gray-300 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed font-light">
-                Breaking down the biggest stories in NFL, NBA, UFC, and College Sports with zero corporate filter.
+                Breaking down the biggest stories in NFL, NBA, MMA, and College Sports with zero corporate filter.
               </p>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
                 <Link href="/podcast">

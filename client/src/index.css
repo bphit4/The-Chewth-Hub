@@ -137,3 +137,154 @@
     100% { transform: translateX(-50%); }
   }
 }
+
+/* CFP Bracket layout helpers */
+.cfp-bracket {
+  position: relative;
+}
+
+.cfp-col {
+  position: relative;
+}
+
+.cfp-col-body {
+  position: relative;
+}
+
+.cfp-col-4,
+.cfp-col-2,
+.cfp-col-1 {
+  display: flex;
+  flex-direction: column;
+  min-height: 460px;
+}
+
+.cfp-col-4 {
+  gap: 36px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.cfp-col-2 {
+  gap: 140px;
+  padding-top: 34px;
+  padding-bottom: 34px;
+}
+
+.cfp-col-1 {
+  gap: 0;
+  padding-top: 120px;
+  padding-bottom: 120px;
+}
+
+/* NFL bracket alignment */
+.nfl-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 420px;
+}
+
+.nfl-col-4 {
+  gap: 18px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.nfl-col-2 {
+  gap: 120px;
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+.nfl-col-1 {
+  gap: 0;
+  padding-top: 120px;
+  padding-bottom: 120px;
+}
+
+.nfl-superbowl-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nfl-superbowl-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+}
+
+.cfp-game {
+  position: relative;
+}
+
+.cfp-game::after,
+.cfp-game::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 2px;
+  background: hsl(var(--border));
+  transform: translateY(-50%);
+  opacity: 0.8;
+}
+
+.cfp-left .cfp-game::after {
+  right: -18px;
+}
+
+.cfp-right .cfp-game::before {
+  left: -18px;
+}
+
+.cfp-center .cfp-game::before {
+  left: -18px;
+}
+
+.cfp-center .cfp-game::after {
+  right: -18px;
+}
+
+.cfp-col-two.cfp-left .cfp-col-body::after,
+.cfp-col-two.cfp-right .cfp-col-body::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  width: 2px;
+  background: hsl(var(--border));
+  opacity: 0.8;
+}
+
+.cfp-col-two.cfp-left .cfp-col-body::after {
+  right: -18px;
+}
+
+.cfp-col-two.cfp-right .cfp-col-body::after {
+  left: -18px;
+}
+
+.cfp-logo-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0 18px;
+}
+
+.cfp-logo {
+  height: 48px;
+  width: auto;
+  opacity: 0.9;
+}
+
+.cfp-logo-fallback {
+  display: none;
+}
+
+.cfp-logo[style*="display: none"] + .cfp-logo-fallback {
+  display: block;
+}

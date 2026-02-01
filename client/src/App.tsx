@@ -26,9 +26,9 @@ import SportOdds from "@/pages/SportOdds";
 import SportStats from "@/pages/SportStats";
 import SportRankings from "@/pages/SportRankings";
 import TeamDetail from "@/pages/TeamDetail";
+import AthleteDetail from "@/pages/AthleteDetail";
 import SportPlayoffs from "@/pages/SportPlayoffs";
 import SportBracket from "@/pages/SportBracket";
-import SportCFP from "@/pages/SportCFP";
 import SportTransfer from "@/pages/SportTransfer";
 
 function Router() {
@@ -53,16 +53,17 @@ function Router() {
           <Route path="/sport/:sport/scores" component={SportScores} />
           <Route path="/sport/:sport/game/:id" component={GameDetail} />
           <Route path="/sport/:sport/standings" component={SportStandings} />
+          <Route path="/sport/:sport/standings/:level" component={SportStandings} />
           <Route path="/sport/:sport/stats" component={SportStats} />
           <Route path="/sport/:sport/teams" component={SportTeams} />
           <Route path="/sport/:sport/team/:teamId" component={TeamDetail} />
+          <Route path="/sport/:sport/athlete/:athleteId" component={AthleteDetail} />
           <Route path="/sport/:sport/schedule" component={SportSchedule} />
           <Route path="/sport/:sport/news" component={SportNews} />
           <Route path="/sport/:sport/odds" component={SportOdds} />
           <Route path="/sport/:sport/rankings" component={SportRankings} />
           <Route path="/sport/:sport/playoffs" component={SportPlayoffs} />
           <Route path="/sport/:sport/bracket" component={SportBracket} />
-          <Route path="/sport/:sport/cfp" component={SportCFP} />
           <Route path="/sport/:sport/transfer" component={SportTransfer} />
 
           <Route path="/admin" component={Admin} />

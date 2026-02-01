@@ -43,15 +43,16 @@ export const SPORTS: {
     apiPath: "football/college-football",
     scoresTabs: [
       { key: "home", label: "Home", href: (s) => `/sport/${s}` },
-      { key: "cfp", label: "College Football Playoff", href: (s) => `/sport/${s}/cfp` },
       { key: "transfer", label: "Transfer Portal", href: (s) => `/sport/${s}/transfer` },
       { key: "scores", label: "Scores", href: (s) => `/sport/${s}/scores` },
       { key: "schedule", label: "Schedules", href: (s) => `/sport/${s}/schedule` },
       { key: "standings", label: "Standings", href: (s) => `/sport/${s}/standings` },
+      { key: "standings-fcs", label: "FCS Standings", href: (s) => `/sport/${s}/standings/fcs` },
       { key: "stats", label: "Stats", href: (s) => `/sport/${s}/stats` },
       { key: "teams", label: "Teams", href: (s) => `/sport/${s}/teams` },
       { key: "rankings", label: "Rankings", href: (s) => `/sport/${s}/rankings` },
       { key: "odds", label: "Odds", href: (s) => `/sport/${s}/odds` },
+      { key: "bracket", label: "CFP Bracket", href: (s) => `/sport/${s}/bracket` },
     ],
   },
   {
@@ -102,7 +103,7 @@ export const SPORTS: {
   },
   {
     key: "ufc",
-    label: "UFC",
+    label: "MMA",
     apiPath: "mma/ufc",
     scoresTabs: [
       { key: "home", label: "Home", href: (s) => `/sport/${s}` },

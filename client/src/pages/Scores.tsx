@@ -12,7 +12,7 @@ export default function Scores() {
     { key: "nba", label: "NBA", href: "/sport/nba/scores" },
     { key: "ncaab", label: "College Basketball", href: "/sport/ncaab/scores" },
     { key: "mlb", label: "MLB", href: "/sport/mlb/scores" },
-    { key: "ufc", label: "UFC", href: "/sport/ufc/scores" },
+    { key: "ufc", label: "MMA", href: "/sport/ufc/scores" },
   ];
 
   return (

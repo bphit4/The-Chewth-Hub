@@ -21,7 +21,7 @@ export function Footer() {
               <li><Link href="/news?cat=NFL" className="hover:text-primary" data-testid="link-footer-nfl">NFL</Link></li>
               <li><Link href="/news?cat=NBA" className="hover:text-primary" data-testid="link-footer-nba">NBA</Link></li>
               <li><Link href="/news?cat=CFB" className="hover:text-primary" data-testid="link-footer-cfb">College Football</Link></li>
-              <li><Link href="/news?cat=UFC" className="hover:text-primary" data-testid="link-footer-ufc">UFC</Link></li>
+              <li><Link href="/news?cat=MMA" className="hover:text-primary" data-testid="link-footer-ufc">MMA</Link></li>
             </ul>
           </div>
 

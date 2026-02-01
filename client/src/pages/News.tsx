@@ -15,7 +15,7 @@ export default function News() {
   const [selectedCategory, setSelectedCategory] = useState(initialCat);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const categories = ["All", "NFL", "NBA", "CFB", "CBB", "MLB", "UFC"];
+  const categories = ["All", "NFL", "NBA", "CFB", "CBB", "MLB", "MMA"];
 
   const filteredArticles = useMemo(() => {
     return ARTICLES.filter(article => {

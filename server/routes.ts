@@ -220,9 +220,31 @@ export async function registerRoutes(
     }
   });
 
+  // ESPN MMA fightcenter event details
+  app.get("/api/espn/mma/event/:eventId", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnMmaEvent(req.params.eventId);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN MMA schedule (season calendar)
+  app.get("/api/espn/mma/schedule", async (req, res, next) => {
+    try {
+      const year = req.query.year != null ? parseInt(String(req.query.year), 10) : undefined;
+      const data = await sportsdata.getEspnMmaSchedule(year);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.get("/api/espn/team/:sport/:teamId", async (req, res, next) => {
     try {
-      const data = await sportsdata.getEspnTeam(req.params.sport, req.params.teamId);
+      const enable = req.query.enable as string | undefined;
+      const data = await sportsdata.getEspnTeam(req.params.sport, req.params.teamId, enable);
       res.json(data);
     } catch (err) {
       next(err);
@@ -247,21 +269,37 @@ export async function registerRoutes(
     }
   });
 
-  // ESPN teams list with optional groups parameter
+  // ESPN teams list with optional groups and limit (e.g. limit=500 for full FBS/FCS/D1)
   app.get("/api/espn/teams/:sport", async (req, res, next) => {
     try {
       const groups = req.query.groups as string | undefined;
-      const data = await sportsdata.getEspnTeams(req.params.sport, groups);
+      const limit = req.query.limit != null ? parseInt(String(req.query.limit), 10) : undefined;
+      const data = await sportsdata.getEspnTeams(req.params.sport, groups, limit);
       res.json(data);
     } catch (err) {
       next(err);
     }
   });
 
+  // ESPN teams scrape (full list without 50-team limit)
+  app.get("/api/espn/teams-scrape/:sport", async (req, res) => {
+    try {
+      const sport = req.params.sport as "ncaaf" | "ncaab";
+      const division =
+        (req.query.division as "fbs" | "fcs" | "d1" | "d2" | "d3") ||
+        (sport === "ncaab" ? "d1" : "fbs");
+      const groups = await sportsdata.getEspnTeamsScrape(sport, division);
+      res.json({ scrapedGroups: groups });
+    } catch (err: any) {
+      res.status(502).json({ scrapedGroups: [], error: err?.message ?? "Teams scrape failed" });
+    }
+  });
+
   // ESPN standings proxy
   app.get("/api/espn/standings/:sport", async (req, res, next) => {
     try {
-      const data = await sportsdata.getEspnStandings(req.params.sport);
+      const group = req.query.group as string | undefined;
+      const data = await sportsdata.getEspnStandings(req.params.sport, group);
       res.json(data);
     } catch (err) {
       next(err);
@@ -278,12 +316,43 @@ export async function registerRoutes(
     }
   });
 
-  // ESPN scoreboard proxy
+  // ESPN scoreboard proxy (dates, groups, seasontype=3 for postseason)
   app.get("/api/espn/scoreboard/:sport", async (req, res, next) => {
     try {
       const date = req.query.dates as string | undefined;
       const groups = req.query.groups as string | undefined;
-      const data = await sportsdata.getEspnScoreboard(req.params.sport, date, groups);
+      const week = req.query.week as string | undefined;
+      const seasontype = req.query.seasontype !== undefined ? parseInt(req.query.seasontype as string, 10) : undefined;
+      const source = req.query.source as string | undefined;
+      const data = await sportsdata.getEspnScoreboard(req.params.sport, date, groups, seasontype, week, source);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN athlete detail proxy (overview, stats, gamelog)
+  app.get("/api/espn/athlete/:sport/:athleteId/overview", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnAthleteOverview(req.params.sport, req.params.athleteId);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/espn/athlete/:sport/:athleteId/stats", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnAthleteStats(req.params.sport, req.params.athleteId);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/espn/athlete/:sport/:athleteId/gamelog", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnAthleteGamelog(req.params.sport, req.params.athleteId);
       res.json(data);
     } catch (err) {
       next(err);
@@ -311,6 +380,26 @@ export async function registerRoutes(
     }
   });
 
+  // ESPN statistics proxy (full stats categories + leaders)
+  app.get("/api/espn/statistics/:sport", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnStatistics(req.params.sport);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ESPN groups proxy (divisions/conferences)
+  app.get("/api/espn/groups/:sport", async (req, res, next) => {
+    try {
+      const data = await sportsdata.getEspnGroups(req.params.sport);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // ESPN rankings proxy
   app.get("/api/espn/rankings/:sport", async (req, res, next) => {
     try {
@@ -321,16 +410,22 @@ export async function registerRoutes(
     }
   });
 
-  // ESPN calendar/weeks proxy for NFL and CFB
+  // ESPN calendar/weeks proxy for NFL and CFB (optional ?year= for NCAAF)
   app.get("/api/espn/calendar/:sport", async (req, res, next) => {
     try {
-      const data = await sportsdata.getEspnCalendar(req.params.sport);
+      const year = req.query.year != null ? parseInt(String(req.query.year), 10) : undefined;
+      const data = await sportsdata.getEspnCalendar(req.params.sport, year);
       if (!data) {
         res.json({ leagues: [] });
         return;
       }
       res.json(data);
     } catch (err) {
+      // NCAAF: return empty calendar so client can use fallback weeks; avoid 500
+      if (req.params.sport === "ncaaf") {
+        res.json({ leagues: [] });
+        return;
+      }
       next(err);
     }
   });

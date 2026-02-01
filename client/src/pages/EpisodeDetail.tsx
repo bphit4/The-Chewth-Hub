@@ -95,7 +95,7 @@ export default function EpisodeDetail() {
                     <li>00:00 - Intro & Reactions</li>
                     <li>12:30 - College Football Playoff breakdown</li>
                     <li>25:45 - NFL Trade Deadline winners & losers</li>
-                    <li>40:10 - UFC 300 Main Card Preview</li>
+                    <li>40:10 - MMA 300 Main Card Preview</li>
                     <li>55:00 - Q&A and Outro</li>
                   </ul>
                </div>

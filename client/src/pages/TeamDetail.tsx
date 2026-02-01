@@ -38,6 +38,12 @@ function normalizeRoster(data: any) {
       position: a?.position?.abbreviation ?? a?.position ?? "",
       jersey: a?.jersey ?? "",
       headshot: a?.headshot?.href ?? "",
+      height: a?.height ?? a?.displayHeight,
+      weight: a?.weight ?? a?.displayWeight,
+      age: a?.age,
+      experience: a?.experience?.years ?? a?.experience,
+      birthPlace: a?.birthPlace?.city ?? a?.birthPlace?.state ?? a?.birthPlace?.country,
+      college: a?.college?.name ?? a?.college,
     }));
   }).filter((p: any) => p.name);
 }
@@ -90,7 +96,7 @@ export default function TeamDetail() {
         
         // Fetch team, roster, and schedule in parallel via backend proxy
         const [teamRes, rosterRes, scheduleRes] = await Promise.all([
-          fetch(`/api/espn/team/${sportKey}/${teamId}`),
+          fetch(`/api/espn/team/${sportKey}/${teamId}?enable=stats`),
           fetch(`/api/espn/team/${sportKey}/${teamId}/roster`),
           fetch(`/api/espn/team/${sportKey}/${teamId}/schedule`),
         ]);
@@ -116,6 +122,7 @@ export default function TeamDetail() {
   const team = normalizeTeamData(teamData);
   const roster = normalizeRoster(rosterData);
   const schedule = normalizeSchedule(scheduleData);
+  const teamStats = teamData?.team?.record?.items?.[0]?.stats ?? [];
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -189,10 +196,32 @@ export default function TeamDetail() {
                           </div>
                         )}
                         <div className="min-w-0">
-                          <div className="font-bold text-sm truncate">{p.name}</div>
+                          {p.id ? (
+                            <Link
+                              href={`/sport/${sportKey}/athlete/${p.id}`}
+                              className="font-bold text-sm truncate hover:underline block"
+                            >
+                              {p.name}
+                            </Link>
+                          ) : (
+                            <div className="font-bold text-sm truncate">{p.name}</div>
+                          )}
                           <div className="text-xs text-muted-foreground">
                             {p.position} {p.jersey && `#${p.jersey}`}
                           </div>
+                          {(p.height || p.weight || p.age || p.experience || p.college) && (
+                            <div className="text-[10px] text-muted-foreground">
+                              {[
+                                p.height && `HT ${p.height}`,
+                                p.weight && `WT ${p.weight}`,
+                                p.age != null && `Age ${p.age}`,
+                                p.experience != null && `Exp ${p.experience}`,
+                                p.college && p.college,
+                              ]
+                                .filter(Boolean)
+                                .join(" • ")}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -249,13 +278,36 @@ export default function TeamDetail() {
               <CardContent>
                 {loading ? (
                   <div className="h-40 animate-pulse bg-secondary/5 rounded-xl" />
-                ) : (
+                ) : teamStats.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    Team statistics coming soon. View the{" "}
+                    No team statistics available right now. View the{" "}
                     <Link href={`/sport/${sportKey}/stats`} className="text-primary underline">
                       league stats page
                     </Link>{" "}
                     for player leaderboards.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-xs uppercase tracking-widest text-muted-foreground border-b border-border">
+                          <th className="text-left py-2 px-3">Stat</th>
+                          <th className="text-right py-2 px-3">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamStats.map((stat: any, idx: number) => (
+                          <tr key={`${stat?.name ?? idx}`} className="border-b border-border/50 hover:bg-secondary/5">
+                            <td className="py-2 px-3 font-medium">
+                              {stat?.displayName ?? stat?.name ?? `Stat ${idx + 1}`}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono">
+                              {stat?.displayValue ?? (stat?.value != null ? String(stat.value) : "—")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>

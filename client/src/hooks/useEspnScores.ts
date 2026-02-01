@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSportConfig, type ChewthGame, type EspnSportKey } from "@/lib/espn";
-import { format } from "date-fns";
+import { formatEtYyyyMmDd, formatUtcYyyyMmDd } from "@/lib/espnCalendar";
 
-function getTeamLogo(team: any, sportKey?: string): string | undefined {
-  if (!team) return undefined;
+function getTeamLogo(team: any, sportKey?: string, competitor?: any): string | undefined {
+  if (!team) {
+    if (sportKey === "ufc") {
+      return competitor?.athlete?.headshot?.href || competitor?.athlete?.flag?.href;
+    }
+    return undefined;
+  }
   // Try multiple logo sources - prioritize ESPN CDN if available
   if (team.logos?.[0]?.href) return team.logos[0].href;
   if (team.logo) return team.logo;
@@ -19,27 +24,38 @@ function normalizeEspnScoreboard(data: any, sportKey?: string): ChewthGame[] {
   return events.map((event: any) => {
     const comp = event?.competitions?.[0];
     const competitors = comp?.competitors ?? [];
-    const home = competitors.find((c: any) => c.homeAway === "home");
-    const away = competitors.find((c: any) => c.homeAway === "away");
+    let home = competitors.find((c: any) => c.homeAway === "home");
+    let away = competitors.find((c: any) => c.homeAway === "away");
+    if ((!home || !away) && competitors.length >= 2) {
+      const ordered = [...competitors].sort((a: any, b: any) => (a?.order ?? 0) - (b?.order ?? 0));
+      away = away ?? ordered[0];
+      home = home ?? ordered[1];
+    }
+    const isMma = sportKey === "ufc";
+    const homeName = isMma ? (home?.athlete?.displayName ?? "Home") : (home?.team?.displayName ?? home?.team?.name ?? "Home");
+    const awayName = isMma ? (away?.athlete?.displayName ?? "Away") : (away?.team?.displayName ?? away?.team?.name ?? "Away");
+    const homeAbbr = isMma ? (home?.athlete?.shortName ?? "HOME") : (home?.team?.abbreviation ?? "");
+    const awayAbbr = isMma ? (away?.athlete?.shortName ?? "AWAY") : (away?.team?.abbreviation ?? "");
     
     return {
       id: event?.id ?? "",
+      date: event?.date ?? "",
       state: event?.status?.type?.state ?? "pre",
       status: event?.status?.type?.shortDetail ?? event?.status?.type?.description ?? "",
       home: {
         id: home?.team?.id ?? "",
-        name: home?.team?.displayName ?? home?.team?.name ?? "",
-        abbr: home?.team?.abbreviation ?? "",
-        logo: getTeamLogo(home?.team, sportKey),
+        name: homeName,
+        abbr: homeAbbr,
+        logo: getTeamLogo(home?.team, sportKey, home),
         score: parseInt(home?.score ?? "0", 10) || 0,
         rank: home?.curatedRank?.current ?? home?.rank ?? undefined,
         conferenceId: home?.team?.conferenceId,
       },
       away: {
         id: away?.team?.id ?? "",
-        name: away?.team?.displayName ?? away?.team?.name ?? "",
-        abbr: away?.team?.abbreviation ?? "",
-        logo: getTeamLogo(away?.team, sportKey),
+        name: awayName,
+        abbr: awayAbbr,
+        logo: getTeamLogo(away?.team, sportKey, away),
         score: parseInt(away?.score ?? "0", 10) || 0,
         rank: away?.curatedRank?.current ?? away?.rank ?? undefined,
         conferenceId: away?.team?.conferenceId,
@@ -51,10 +67,30 @@ function normalizeEspnScoreboard(data: any, sportKey?: string): ChewthGame[] {
   });
 }
 
-async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter?: string, endDate?: Date): Promise<ChewthGame[]> {
+async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter?: string, endDate?: Date, seasontype?: number): Promise<ChewthGame[]> {
+  // Use UTC for week ranges; use ET date for single-day scoreboards
   const dateStr = endDate 
-    ? `${format(date, "yyyyMMdd")}-${format(endDate, "yyyyMMdd")}`
-    : format(date, "yyyyMMdd");
+    ? `${formatUtcYyyyMmDd(date)}-${formatUtcYyyyMmDd(endDate)}`
+    : formatEtYyyyMmDd(date);
+
+  // Prefer ESPN CDN for single-day scoreboards (faster live updates) — never for UFC or NCAAF "all" (NCAAF all uses server merge of FBS+FCS)
+  if (!endDate && !filter && sportKey !== "ufc" && sportKey !== "ncaaf") {
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}&source=cdn`);
+    if (!res.ok) {
+      throw new Error(`ESPN API error: ${res.status}`);
+    }
+    const data = await res.json();
+    return normalizeEspnScoreboard(data, sportKey);
+  }
+  // NCAAF single-day "all": use site API so server returns merged FBS+FCS
+  if (!endDate && sportKey === "ncaaf" && !filter) {
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
+    if (!res.ok) {
+      throw new Error(`ESPN API error: ${res.status}`);
+    }
+    const data = await res.json();
+    return normalizeEspnScoreboard(data, sportKey);
+  }
   
   // For week-based sports (NFL, CFB) with date range, always use ESPN
   if ((sportKey === "nfl" || sportKey === "ncaaf") && endDate) {
@@ -67,13 +103,23 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter
         groupParam = `&groups=${confId}`;
       }
     }
-    
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${groupParam}`);
+    const seasonParam = seasontype !== undefined ? `&seasontype=${seasontype}` : "";
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${groupParam}${seasonParam}`);
     if (!res.ok) {
       throw new Error(`ESPN API error: ${res.status}`);
     }
     const data = await res.json();
-    const games = normalizeEspnScoreboard(data, sportKey);
+    // Respect week boundary: ESPN calendar ends at e.g. 06:59 UTC; API date range is inclusive by day,
+    // so exclude games that start after the week's end (e.g. HOF week ends Aug 7 06:59, Preseason Week 1 starts Aug 7 07:00+)
+    const events = data?.events ?? [];
+    const weekEnd = endDate ? endDate.getTime() : null;
+    const filteredEvents = weekEnd
+      ? events.filter((e: any) => {
+          const gameTime = e?.date ? new Date(e.date).getTime() : 0;
+          return gameTime <= weekEnd;
+        })
+      : events;
+    const games = normalizeEspnScoreboard({ ...data, events: filteredEvents }, sportKey);
     
     // Client-side filter for Top 25 (CFB only)
     if (filter === "top25") {
@@ -107,7 +153,7 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter
   
   // For college sports without filter, use ESPN scoreboard (more reliable)
   if (sportKey === "ncaaf" || sportKey === "ncaab") {
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}&source=cdn`);
     if (!res.ok) {
       throw new Error(`ESPN API error: ${res.status}`);
     }
@@ -125,35 +171,27 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter
     return games;
   }
   
-  // For pro sports (non-week view), use SportsDataIO
-  const formattedDate = format(date, "yyyy-MMM-dd").toUpperCase();
-  const sportMap: Record<EspnSportKey, string> = {
-    nfl: "nfl",
-    nba: "nba",
-    mlb: "mlb",
-    ncaaf: "cfb",
-    ncaab: "cbb",
-    ufc: "ufc"
-  };
-  
-  const apiSport = sportMap[sportKey];
-  const endpoint = `/api/${apiSport}/scores/${formattedDate}`;
-  
-  const res = await fetch(endpoint);
-  if (!res.ok) {
-    // Fallback to ESPN for any sport
-    const espnRes = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
-    if (espnRes.ok) {
-      const data = await espnRes.json();
-      return normalizeEspnScoreboard(data, sportKey);
+  // For UFC, use ESPN MMA hub directly
+  if (sportKey === "ufc") {
+    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
+    if (!res.ok) {
+      throw new Error(`ESPN API error: ${res.status}`);
     }
-    throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    return normalizeEspnScoreboard(data, sportKey);
   }
-  
-  return await res.json();
+
+  // All other scores: use ESPN (no SportsData.io key required)
+  const sourceParam = endDate ? "" : "&source=cdn";
+  const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${sourceParam}`);
+  if (!res.ok) {
+    throw new Error(`ESPN API error: ${res.status}`);
+  }
+  const data = await res.json();
+  return normalizeEspnScoreboard(data, sportKey);
 }
 
-export function useEspnScores(sportKey: EspnSportKey, date?: Date, filter?: string, endDate?: Date) {
+export function useEspnScores(sportKey: EspnSportKey, date?: Date, filter?: string, endDate?: Date, seasontype?: number) {
   const cfg = getSportConfig(sportKey);
   const [games, setGames] = useState<ChewthGame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,7 +206,7 @@ export function useEspnScores(sportKey: EspnSportKey, date?: Date, filter?: stri
       if (!cfg) return;
       try {
         setError(null);
-        const data = await fetchScoresFromBackend(sportKey, currentDate, filter, endDate);
+        const data = await fetchScoresFromBackend(sportKey, currentDate, filter, endDate, seasontype);
         if (mounted) setGames(data);
       } catch (e: any) {
         if (mounted) setError(e?.message ?? "Failed to load scores");
@@ -185,7 +223,7 @@ export function useEspnScores(sportKey: EspnSportKey, date?: Date, filter?: stri
       mounted = false;
       if (interval) window.clearInterval(interval);
     };
-  }, [sportKey, currentDate.toDateString(), filter, endDate?.toDateString()]);
+  }, [sportKey, currentDate.toDateString(), filter, endDate?.toDateString(), seasontype]);
 
   return useMemo(() => ({ cfg, games, loading, error }), [cfg, games, loading, error]);
 }

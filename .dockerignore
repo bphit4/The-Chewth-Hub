@@ -1,0 +1,14 @@
+node_modules
+.git
+.gitignore
+*.md
+.env
+.env.*
+.firebase
+.firebaserc
+firebase.json
+attached_assets
+docs
+.replit
+*.log
+dist

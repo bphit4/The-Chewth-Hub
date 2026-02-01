@@ -24,15 +24,15 @@ export function ScoreTicker() {
         const results = await Promise.all(
           leagues.map(async (league) => {
             const path = league === "college-football"
-              ? "football/college-football"
+              ? "ncaaf"
               : league === "nfl"
-                ? "football/nfl"
+                ? "nfl"
                 : league === "nba"
-                  ? "basketball/nba"
+                  ? "nba"
                   : league === "mlb"
-                    ? "baseball/mlb"
-                    : "mma/ufc";
-            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`);
+                    ? "mlb"
+                    : "ufc";
+            const res = await fetch(`/api/espn/scoreboard/${path}`);
             const data = await res.json();
 
             const events = Array.isArray(data?.events) ? data.events : [];
@@ -48,7 +48,7 @@ export function ScoreTicker() {
 
               return {
                 id: String(event.id),
-                league: league === "college-football" ? "NCAAF" : league === "mma" ? "UFC" : league.toUpperCase(),
+                league: league === "college-football" ? "NCAAF" : league === "mma" ? "MMA" : league.toUpperCase(),
                 status: event?.status?.type?.shortDetail ?? "",
                 homeTeam: home?.team?.abbreviation ?? "HOME",
                 homeScore: toScore(home?.score),
