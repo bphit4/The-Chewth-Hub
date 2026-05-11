@@ -4,6 +4,7 @@ import { AlertCircle, ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
@@ -176,7 +177,7 @@ export default function SportStandings() {
         setLoading(true);
         setError(null);
         const groupParam = sportKey === "ncaaf" && level === "fcs" ? "?group=81" : "";
-        const res = await fetch(`/api/espn/standings/${sportKey}${groupParam}`);
+        const res = await fetchDirectEspnApi(`/api/espn/standings/${sportKey}${groupParam}`);
         if (!res.ok) throw new Error(`Failed to fetch standings (${res.status})`);
         const json = await res.json();
         if (mounted) setData(json);
@@ -199,7 +200,7 @@ export default function SportStandings() {
           if (mounted) setGroupsData(null);
           return;
         }
-        const res = await fetch(`/api/espn/groups/${sportKey}`);
+        const res = await fetchDirectEspnApi(`/api/espn/groups/${sportKey}`);
         if (!res.ok) throw new Error(`Failed to fetch groups (${res.status})`);
         const json = await res.json();
         if (mounted) setGroupsData(json);

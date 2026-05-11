@@ -10,8 +10,10 @@ import { AlertCircle, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-rea
 import { SportSubnav } from "@/components/sports/SportSubnav";
 import { cn } from "@/lib/utils";
 import { SPORTS, type EspnSportKey } from "@/lib/espn";
-import { formatEtYyyyMmDd, getNcaafFallbackWeeks, ncaafSeasonYear, parseCalendarWeeks, type WeekEntry } from "@/lib/espnCalendar";
+import { formatEtYyyyMmDd, getNcaafFallbackWeeks, parseCalendarWeeks, type WeekEntry } from "@/lib/espnCalendar";
 import { useEspnScores } from "@/hooks/useEspnScores";
+import { fetchDirectEspnCalendar, fetchDirectEspnGroups, fetchDirectEspnScoreboard } from "@/lib/espnDirect";
+import { espnHeadshotPng } from "@/lib/espnImages";
 import { format } from "date-fns";
 import { MmaEventCard } from "@/components/mma/MmaEventCard";
 
@@ -67,9 +69,8 @@ async function findAdjacentGameDate(
         rangeEnd.setDate(rangeEnd.getDate() - offset);
         rangeStart.setDate(rangeStart.getDate() - Math.min(offset + step - 1, max));
       }
-      const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
-      if (!res.ok) continue;
-      const json = await res.json();
+      const json = await fetchDirectEspnScoreboard({ sport: sportKey, date: buildDateRange(rangeStart, rangeEnd) }).catch(() => null);
+      if (!json) continue;
       const events = json?.events ?? [];
       if (!events.length) continue;
       const dates = events
@@ -101,9 +102,8 @@ async function findNextGameDate(sportKey: EspnSportKey, startDate: Date): Promis
     rangeStart.setDate(rangeStart.getDate() + offset);
     const rangeEnd = new Date(base);
     rangeEnd.setDate(rangeEnd.getDate() + Math.min(offset + step - 1, maxForward));
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
-    if (!res.ok) continue;
-    const json = await res.json();
+    const json = await fetchDirectEspnScoreboard({ sport: sportKey, date: buildDateRange(rangeStart, rangeEnd) }).catch(() => null);
+    if (!json) continue;
     const events = json?.events ?? [];
     if (!events.length) continue;
     const nextEvent = events
@@ -119,9 +119,8 @@ async function findNextGameDate(sportKey: EspnSportKey, startDate: Date): Promis
     rangeEnd.setDate(rangeEnd.getDate() - offset);
     const rangeStart = new Date(base);
     rangeStart.setDate(rangeStart.getDate() - Math.min(offset + step - 1, maxBackward));
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
-    if (!res.ok) continue;
-    const json = await res.json();
+    const json = await fetchDirectEspnScoreboard({ sport: sportKey, date: buildDateRange(rangeStart, rangeEnd) }).catch(() => null);
+    if (!json) continue;
     const events = json?.events ?? [];
     if (!events.length) continue;
     const prevEvent = events
@@ -185,6 +184,40 @@ const MAJOR_CBB_CONFERENCES = [
   { id: "16", name: "Mountain West", abbr: "MWC" },
 ];
 
+function normalizeMmaScoreboardEvent(event: any) {
+  return {
+    id: String(event?.id ?? ""),
+    name: event?.name,
+    shortName: event?.shortName,
+    date: event?.date,
+    status: event?.status?.type?.shortDetail ?? event?.status?.type?.description,
+    venue: event?.competitions?.[0]?.venue
+      ? {
+          name: event.competitions[0].venue.fullName,
+          city: event.competitions[0].venue.address?.city,
+          state: event.competitions[0].venue.address?.state,
+          country: event.competitions[0].venue.address?.country,
+        }
+      : null,
+    broadcast: event?.competitions?.[0]?.broadcast ?? event?.competitions?.[0]?.broadcasts?.[0]?.names?.[0],
+    competitions: (event?.competitions ?? []).map((competition: any) => ({
+      id: String(competition?.id ?? ""),
+      weightClass: competition?.type?.text ?? competition?.type?.abbreviation,
+      status: competition?.status?.type?.shortDetail ?? competition?.status?.type?.description,
+      state: competition?.status?.type?.state,
+      fighters: (competition?.competitors ?? []).map((competitor: any) => ({
+        id: competitor?.athlete?.id != null ? String(competitor.athlete.id) : undefined,
+        name: competitor?.athlete?.displayName,
+        shortName: competitor?.athlete?.shortName,
+        headshot: competitor?.athlete?.headshot?.href ?? espnHeadshotPng("ufc", competitor?.athlete?.id),
+        flag: competitor?.athlete?.flag?.href,
+        winner: competitor?.winner,
+        order: competitor?.order,
+      })),
+    })),
+  };
+}
+
 export default function SportScores() {
   const [match, params] = useRoute("/sport/:sport/scores");
   const sport = params?.sport;
@@ -226,13 +259,9 @@ export default function SportScores() {
 
     async function loadCalendar() {
       try {
-        const yearParam = sportKey === "ncaaf" ? `?year=${ncaafSeasonYear()}` : "";
-        const res = await fetch(`/api/espn/calendar/${sportKey}${yearParam}`);
         let parsedWeeks: WeekEntry[] = [];
-        if (res.ok) {
-          const data = await res.json();
-          parsedWeeks = parseCalendarWeeks(data);
-        }
+        const data = await fetchDirectEspnCalendar(sportKey);
+        parsedWeeks = parseCalendarWeeks(data);
         if (sportKey === "ncaaf" && parsedWeeks.length === 0) {
           parsedWeeks = getNcaafFallbackWeeks();
         }
@@ -285,17 +314,14 @@ export default function SportScores() {
 
     async function loadConferences() {
       try {
-        const res = await fetch(`/api/espn/groups/${sportKey}`);
-        if (res.ok) {
-          const data = await res.json();
-          const groups = data?.groups ?? data?.children ?? [];
-          const confList = groups.map((g: any) => ({
-            id: String(g?.id ?? ""),
-            name: g?.name ?? g?.displayName ?? "",
-            abbreviation: g?.abbreviation ?? g?.shortName ?? "",
-          })).filter((c: ConferenceGroup) => c.id && c.name);
-          setConferences(confList);
-        }
+        const data = await fetchDirectEspnGroups(sportKey);
+        const groups = data?.groups ?? data?.children ?? [];
+        const confList = groups.map((g: any) => ({
+          id: String(g?.id ?? ""),
+          name: g?.name ?? g?.displayName ?? "",
+          abbreviation: g?.abbreviation ?? g?.shortName ?? "",
+        })).filter((c: ConferenceGroup) => c.id && c.name);
+        setConferences(confList);
       } catch (e) {
         console.error("Failed to load conferences:", e);
       }
@@ -343,17 +369,13 @@ export default function SportScores() {
         setMmaLoading(true);
         setMmaError(null);
         const dateStr = formatEtYyyyMmDd(selectedDate);
-        const res = await fetch(`/api/espn/scoreboard/ufc?dates=${dateStr}`);
-        if (!res.ok) throw new Error(`Failed to fetch MMA events (${res.status})`);
-        const data = await res.json();
+        const data = await fetchDirectEspnScoreboard({ sport: "ufc", date: dateStr });
         const events = Array.isArray(data?.events) ? data.events : [];
         const details = await Promise.all(
           events.map(async (e: any) => {
             const id = e?.id ? String(e.id) : "";
             if (!id) return null;
-            const detailRes = await fetch(`/api/espn/mma/event/${id}`);
-            if (!detailRes.ok) return null;
-            return detailRes.json();
+            return normalizeMmaScoreboardEvent(e);
           })
         );
         if (mounted) setMmaEvents(details.filter(Boolean));
@@ -632,9 +654,12 @@ export default function SportScores() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 {g.away?.logo ? <img src={g.away.logo} alt="" className="h-6 w-6 object-contain" /> : <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">{g.away?.abbr?.charAt(0) || "A"}</div>}
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0">
                                   {g.away?.rank && g.away.rank <= 25 && <span className="text-xs text-muted-foreground font-bold">{g.away.rank}</span>}
                                   <span className="font-bold text-sm">{g.away?.name || "Away"}</span>
+                                  </div>
+                                  {g.away?.record && <span className="text-[10px] text-muted-foreground">{g.away.record}</span>}
                                 </div>
                               </div>
                               <div className={cn("font-mono text-xl font-black tabular-nums", g.state === "post" && (g.away?.score ?? 0) > (g.home?.score ?? 0) ? "text-foreground" : "text-muted-foreground")}>{g.away?.score ?? "-"}</div>
@@ -642,16 +667,19 @@ export default function SportScores() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 {g.home?.logo ? <img src={g.home.logo} alt="" className="h-6 w-6 object-contain" /> : <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">{g.home?.abbr?.charAt(0) || "H"}</div>}
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0">
                                   {g.home?.rank && g.home.rank <= 25 && <span className="text-xs text-muted-foreground font-bold">{g.home.rank}</span>}
                                   <span className="font-bold text-sm">{g.home?.name || "Home"}</span>
+                                  </div>
+                                  {g.home?.record && <span className="text-[10px] text-muted-foreground">{g.home.record}</span>}
                                 </div>
                               </div>
                               <div className={cn("font-mono text-xl font-black tabular-nums", g.state === "post" && (g.home?.score ?? 0) > (g.away?.score ?? 0) ? "text-foreground" : "text-muted-foreground")}>{g.home?.score ?? "-"}</div>
                             </div>
                           </div>
                           <div className="px-4 py-2 border-t border-border/40 bg-muted/20 flex justify-between items-center gap-2">
-                            <span className="text-xs text-muted-foreground shrink-0">{formatGameDateTime(g.date, true)}</span>
+                            <span className="min-w-0 truncate text-xs text-muted-foreground">{[formatGameDateTime(g.date, true), g.venue, g.broadcast, g.odds].filter(Boolean).join(" / ")}</span>
                             <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors shrink-0">Gamecast →</span>
                           </div>
                         </Card>
@@ -694,9 +722,12 @@ export default function SportScores() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {g.away?.logo ? <img src={g.away.logo} alt="" className="h-6 w-6 object-contain" /> : <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">{g.away?.abbr?.charAt(0) || "A"}</div>}
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
                             {g.away?.rank && g.away.rank <= 25 && <span className="text-xs text-muted-foreground font-bold">{g.away.rank}</span>}
                             <span className="font-bold text-sm">{g.away?.name || "Away"}</span>
+                            </div>
+                            {g.away?.record && <span className="text-[10px] text-muted-foreground">{g.away.record}</span>}
                           </div>
                         </div>
                         <div className={cn("font-mono text-xl font-black tabular-nums", g.state === "post" && (g.away?.score ?? 0) > (g.home?.score ?? 0) ? "text-foreground" : "text-muted-foreground")}>{g.away?.score ?? "-"}</div>
@@ -704,16 +735,19 @@ export default function SportScores() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {g.home?.logo ? <img src={g.home.logo} alt="" className="h-6 w-6 object-contain" /> : <div className="h-6 w-6 rounded bg-muted grid place-items-center font-bold text-[10px]">{g.home?.abbr?.charAt(0) || "H"}</div>}
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
                             {g.home?.rank && g.home.rank <= 25 && <span className="text-xs text-muted-foreground font-bold">{g.home.rank}</span>}
                             <span className="font-bold text-sm">{g.home?.name || "Home"}</span>
+                            </div>
+                            {g.home?.record && <span className="text-[10px] text-muted-foreground">{g.home.record}</span>}
                           </div>
                         </div>
                         <div className={cn("font-mono text-xl font-black tabular-nums", g.state === "post" && (g.home?.score ?? 0) > (g.away?.score ?? 0) ? "text-foreground" : "text-muted-foreground")}>{g.home?.score ?? "-"}</div>
                       </div>
                     </div>
                     <div className="px-4 py-2 border-t border-border/40 bg-muted/20 flex justify-between items-center gap-2">
-                      <span className="text-xs text-muted-foreground shrink-0">{formatGameDateTime(g.date, isWeekBasedSport)}</span>
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">{[formatGameDateTime(g.date, isWeekBasedSport), g.venue, g.broadcast, g.odds].filter(Boolean).join(" / ")}</span>
                       <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors shrink-0">Gamecast →</span>
                     </div>
                   </Card>

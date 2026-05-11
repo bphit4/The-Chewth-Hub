@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
@@ -56,7 +57,7 @@ export default function SportNews() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/espn/news/${sportKey}?limit=30`);
+        const res = await fetchDirectEspnApi(`/api/espn/news/${sportKey}?limit=30`);
         if (!res.ok) throw new Error(`Failed to fetch news (${res.status})`);
         const json = await res.json();
         if (mounted) setData(json);

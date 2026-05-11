@@ -6,13 +6,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { BoardAuthProvider } from "@/components/board/BoardAuthProvider";
 
 // Pages
 import Home from "@/pages/Home";
 import Podcast from "@/pages/Podcast";
 import News from "@/pages/News";
 import Scores from "@/pages/Scores";
-import Admin from "@/pages/Admin";
 import ArticleDetail from "@/pages/ArticleDetail";
 import EpisodeDetail from "@/pages/EpisodeDetail";
 import SportScores from "@/pages/SportScores";
@@ -30,14 +30,16 @@ import AthleteDetail from "@/pages/AthleteDetail";
 import SportPlayoffs from "@/pages/SportPlayoffs";
 import SportBracket from "@/pages/SportBracket";
 import SportTransfer from "@/pages/SportTransfer";
+import Board from "@/pages/Board";
+import BoardThread from "@/pages/BoardThread";
+import BoardAdmin from "@/pages/BoardAdmin";
 
 function Router() {
   const [location] = useLocation();
-  const isAdmin = location.startsWith("/admin");
 
   return (
     <div className="flex min-h-screen flex-col font-sans text-foreground bg-background">
-      {!isAdmin && <Navbar />}
+      <Navbar />
       
       <main className="flex-grow">
         <Switch>
@@ -47,9 +49,11 @@ function Router() {
           <Route path="/news" component={News} />
           <Route path="/news/:id" component={ArticleDetail} />
           <Route path="/scores" component={Scores} />
+          <Route path="/board" component={Board} />
+          <Route path="/board/admin" component={BoardAdmin} />
+          <Route path="/board/:threadId" component={BoardThread} />
 
           {/* ESPN-like sport hubs */}
-          <Route path="/sport/:sport" component={SportHome} />
           <Route path="/sport/:sport/scores" component={SportScores} />
           <Route path="/sport/:sport/game/:id" component={GameDetail} />
           <Route path="/sport/:sport/standings" component={SportStandings} />
@@ -65,13 +69,14 @@ function Router() {
           <Route path="/sport/:sport/playoffs" component={SportPlayoffs} />
           <Route path="/sport/:sport/bracket" component={SportBracket} />
           <Route path="/sport/:sport/transfer" component={SportTransfer} />
+          <Route path="/sport/:sport" component={SportHome} />
 
-          <Route path="/admin" component={Admin} />
+          <Route path="/admin" component={BoardAdmin} />
           <Route component={NotFound} />
         </Switch>
       </main>
 
-      {!isAdmin && <Footer />}
+      <Footer />
     </div>
   );
 }
@@ -81,7 +86,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <BoardAuthProvider>
+          <Router />
+        </BoardAuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

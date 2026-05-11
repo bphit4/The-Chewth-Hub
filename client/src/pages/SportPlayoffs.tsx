@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
 import { Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -87,7 +88,7 @@ export default function SportPlayoffs() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/espn/scoreboard/${sportKey}?seasontype=3`);
+        const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?seasontype=3`);
         if (!res.ok) throw new Error(`Failed to load playoffs (${res.status})`);
         const json = await res.json();
         if (mounted) setData(json);

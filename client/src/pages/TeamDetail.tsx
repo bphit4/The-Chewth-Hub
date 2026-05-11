@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
+import { espnHeadshotPng } from "@/lib/espnImages";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
@@ -26,7 +28,7 @@ function normalizeTeamData(data: any) {
   };
 }
 
-function normalizeRoster(data: any) {
+function normalizeRoster(data: any, sportKey: EspnSportKey) {
   const athletes = data?.athletes ?? data?.team?.athletes ?? [];
   if (!Array.isArray(athletes)) return [];
   
@@ -37,7 +39,7 @@ function normalizeRoster(data: any) {
       name: a?.displayName ?? a?.fullName ?? "",
       position: a?.position?.abbreviation ?? a?.position ?? "",
       jersey: a?.jersey ?? "",
-      headshot: a?.headshot?.href ?? "",
+      headshot: a?.headshot?.href ?? a?.headshot ?? espnHeadshotPng(sportKey, a?.id),
       height: a?.height ?? a?.displayHeight,
       weight: a?.weight ?? a?.displayWeight,
       age: a?.age,
@@ -94,11 +96,10 @@ export default function TeamDetail() {
         setLoading(true);
         setError(null);
         
-        // Fetch team, roster, and schedule in parallel via backend proxy
         const [teamRes, rosterRes, scheduleRes] = await Promise.all([
-          fetch(`/api/espn/team/${sportKey}/${teamId}?enable=stats`),
-          fetch(`/api/espn/team/${sportKey}/${teamId}/roster`),
-          fetch(`/api/espn/team/${sportKey}/${teamId}/schedule`),
+          fetchDirectEspnApi(`/api/espn/team/${sportKey}/${teamId}?enable=stats`),
+          fetchDirectEspnApi(`/api/espn/team/${sportKey}/${teamId}/roster`),
+          fetchDirectEspnApi(`/api/espn/team/${sportKey}/${teamId}/schedule`),
         ]);
         
         if (mounted) {
@@ -120,7 +121,7 @@ export default function TeamDetail() {
   if (!match || !cfg) return null;
 
   const team = normalizeTeamData(teamData);
-  const roster = normalizeRoster(rosterData);
+  const roster = normalizeRoster(rosterData, sportKey);
   const schedule = normalizeSchedule(scheduleData);
   const teamStats = teamData?.team?.record?.items?.[0]?.stats ?? [];
 
@@ -189,7 +190,14 @@ export default function TeamDetail() {
                     {roster.map((p: any) => (
                       <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/5" data-testid={`player-${p.id}`}>
                         {p.headshot ? (
-                          <img src={p.headshot} alt="" className="h-10 w-10 rounded-full object-cover" />
+                          <img
+                            src={p.headshot}
+                            alt=""
+                            className="h-10 w-10 rounded-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
                         ) : (
                           <div className="h-10 w-10 rounded-full bg-secondary/20 flex items-center justify-center font-bold text-sm">
                             {p.jersey || "?"}

@@ -1,0 +1,128 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return signedIn() && request.auth.token.email == "thechewth@thechewth.local";
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/forumProfiles/$(uid);
+    }
+
+    function hasProfile(uid) {
+      return exists(profilePath(uid));
+    }
+
+    function myProfile() {
+      return get(profilePath(request.auth.uid)).data;
+    }
+
+    function roleIsAtLeast(role, minimum) {
+      return role == "owner"
+        || (minimum != "owner" && role == "admin")
+        || (minimum == "moderator" && role == "moderator")
+        || minimum == "member";
+    }
+
+    function myRoleIsAtLeast(minimum) {
+      return isOwner() || (signedIn() && hasProfile(request.auth.uid) && roleIsAtLeast(myProfile().role, minimum));
+    }
+
+    function profileCanUseBoard(profile) {
+      return profile.status == "active"
+        || (profile.status == "timeout" && profile.timeoutUntil <= request.time);
+    }
+
+    function canUseBoard() {
+      return isOwner() || (signedIn() && hasProfile(request.auth.uid) && profileCanUseBoard(myProfile()));
+    }
+
+    function canModerate() {
+      return canUseBoard() && myRoleIsAtLeast("moderator");
+    }
+
+    function canManageUsers() {
+      return canUseBoard() && myRoleIsAtLeast("admin");
+    }
+
+    function targetIsLowerRole(targetRole) {
+      return isOwner()
+        || (myProfile().role == "admin" && (targetRole == "moderator" || targetRole == "member"));
+    }
+
+    function ownsExisting() {
+      return signedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    match /forumThreads/{threadId} {
+      allow read: if true;
+      allow create: if canUseBoard()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.isPinned == false
+        && request.resource.data.isLocked == false
+        && request.resource.data.isDeleted == false;
+      allow update: if canModerate()
+        || (
+          canUseBoard()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["replyCount", "lastActivityAt", "updatedAt"])
+        )
+        || (
+          canUseBoard()
+          && ownsExisting()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["title", "body", "updatedAt"])
+        );
+      allow delete: if canModerate();
+    }
+
+    match /forumPosts/{postId} {
+      allow read: if true;
+      allow create: if canUseBoard()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.isDeleted == false;
+      allow update: if canModerate()
+        || (
+          canUseBoard()
+          && ownsExisting()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["body", "isDeleted", "updatedAt", "deletedAt"])
+        );
+      allow delete: if canModerate();
+    }
+
+    match /forumProfiles/{userId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.status == "active"
+        && (
+          (isOwner() && request.resource.data.role == "owner")
+          || (!isOwner() && request.resource.data.role == "member")
+        );
+      allow update: if (
+          signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["email", "displayName", "photoURL", "lastSeenAt", "updatedAt"])
+        )
+        || (
+          canManageUsers()
+          && request.auth.uid != userId
+          && targetIsLowerRole(resource.data.role)
+          && targetIsLowerRole(request.resource.data.role)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["role", "status", "timeoutUntil", "updatedAt"])
+        );
+      allow delete: if canManageUsers()
+        && request.auth.uid != userId
+        && targetIsLowerRole(resource.data.role);
+    }
+  }
+}

@@ -84,9 +84,19 @@ export function Navbar() {
           >
             News
           </Link>
+          <Link
+            href="/board"
+            data-testid="link-nav-board"
+            className={cn(
+              "text-xs font-bold uppercase tracking-wide transition-colors",
+              location.startsWith("/board") ? "text-primary" : "text-white/70 hover:text-white"
+            )}
+          >
+            Board
+          </Link>
           
           <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
-          <Link href="/admin" data-testid="link-admin">
+          <Link href="/board/admin" data-testid="link-admin" title="Board account">
             <Button data-testid="button-admin" variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10">
               <User className="h-4 w-4" />
             </Button>
@@ -150,6 +160,22 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 News
+              </Link>
+              <Link
+                href="/board"
+                data-testid="link-mobile-board"
+                className="text-white/70 hover:text-white text-sm font-bold uppercase"
+                onClick={() => setIsOpen(false)}
+              >
+                Board
+              </Link>
+              <Link
+                href="/board/admin"
+                data-testid="link-mobile-admin"
+                className="text-white/70 hover:text-white text-sm font-bold uppercase"
+                onClick={() => setIsOpen(false)}
+              >
+                Account
               </Link>
             </div>
           </div>

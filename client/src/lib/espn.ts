@@ -171,9 +171,14 @@ export type ChewthGame = {
   status: string;
   state: string;
   date?: string;
-  home: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string };
-  away: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string };
+  home: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string; record?: string };
+  away: { id?: string; name: string; abbr: string; logo?: string; score?: number; rank?: number; conferenceId?: string; record?: string };
   groups?: string[];
+  period?: number;
+  clock?: string;
+  venue?: string;
+  broadcast?: string;
+  odds?: string;
   /**
    * Optional event headline describing the game or bowl/championship title.
    * Examples include "Big Ten Championship" or "The Myrtle Beach Bowl".

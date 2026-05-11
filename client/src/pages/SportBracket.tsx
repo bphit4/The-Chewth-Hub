@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
 import { cn } from "@/lib/utils";
 
 const sportKeys = SPORTS.map((s) => s.key);
@@ -164,14 +165,14 @@ export default function SportBracket() {
         setError(null);
         if (sportKey === "ncaaf") {
           const url = `/api/espn/scoreboard/${sportKey}?seasontype=3&week=999`;
-          const res = await fetch(url);
+          const res = await fetchDirectEspnApi(url);
           if (!res.ok) throw new Error(`Failed to load bracket (${res.status})`);
           const json = await res.json();
           if (mounted) setData(json);
         } else {
           const weeks = [1, 2, 3, 4, 5];
           const results = await Promise.all(
-            weeks.map((week) => fetch(`/api/espn/scoreboard/${sportKey}?seasontype=3&week=${week}`))
+            weeks.map((week) => fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?seasontype=3&week=${week}`))
           );
           const jsons = await Promise.all(
             results.map(async (res) => {
@@ -201,7 +202,7 @@ export default function SportBracket() {
     let mounted = true;
     async function loadSeeds() {
       try {
-        const res = await fetch(`/api/espn/standings/${sportKey}`);
+        const res = await fetchDirectEspnApi(`/api/espn/standings/${sportKey}`);
         if (!res.ok) return;
         const json = await res.json();
         const map: Record<string, { seed: number; conference?: "AFC" | "NFC"; name?: string; logo?: string }> = {};

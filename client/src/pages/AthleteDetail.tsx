@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { SportSubnav } from "@/components/sports/SportSubnav";
@@ -6,24 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
+import { espnHeadshotPng } from "@/lib/espnImages";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
   return sportKeys.includes(v);
 }
 
-function buildHeadshotUrl(sportKey: EspnSportKey | undefined, athleteId?: string) {
-  if (!sportKey || !athleteId) return undefined;
-  const sportMap: Record<EspnSportKey, string> = {
-    nfl: "nfl",
-    nba: "nba",
-    mlb: "mlb",
-    ncaaf: "college-football",
-    ncaab: "mens-college-basketball",
-    ufc: "mma",
-  };
-  const slug = sportMap[sportKey];
-  return slug ? `https://a.espncdn.com/i/headshots/${slug}/players/full/${athleteId}.png` : undefined;
+function textValue(value: any): string {
+  if (value == null || value === "") return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return "";
 }
 
 function normalizeAthleteBio(data: any, sportKey: EspnSportKey) {
@@ -39,24 +33,33 @@ function normalizeAthleteBio(data: any, sportKey: EspnSportKey) {
   const headshot =
     athlete?.headshot?.href ??
     athlete?.headshot?.url ??
-    buildHeadshotUrl(sportKey, athleteId);
+    espnHeadshotPng(sportKey, athleteId);
 
   return {
     id: athleteId,
     name: athlete?.displayName ?? athlete?.fullName ?? athlete?.name ?? "",
     shortName: athlete?.shortName ?? "",
     headshot,
-    position: athlete?.position?.displayName ?? athlete?.position?.abbreviation ?? athlete?.position ?? "",
-    teamName: team?.displayName ?? team?.name ?? "",
-    teamAbbr: team?.abbreviation ?? "",
+    position: textValue(athlete?.position?.displayName ?? athlete?.position?.abbreviation ?? athlete?.position),
+    teamName: textValue(team?.displayName ?? team?.name),
+    teamAbbr: textValue(team?.abbreviation),
     teamLogo: team?.logos?.[0]?.href ?? team?.logo,
-    height: athlete?.displayHeight ?? athlete?.height,
-    weight: athlete?.displayWeight ?? athlete?.weight,
-    age: athlete?.age,
-    experience: athlete?.experience?.years ?? athlete?.experience,
+    height: textValue(athlete?.displayHeight ?? athlete?.height),
+    weight: textValue(athlete?.displayWeight ?? athlete?.weight),
+    age: textValue(athlete?.age),
+    experience: textValue(athlete?.experience?.years ?? athlete?.experience),
     birthPlace,
-    college: athlete?.college?.name ?? athlete?.college,
-    status: athlete?.status?.name ?? athlete?.status?.type?.name,
+    college: textValue(athlete?.college?.name ?? athlete?.college?.displayName ?? athlete?.college),
+    status: textValue(athlete?.status?.name ?? athlete?.status?.type?.name ?? athlete?.status),
+    facts: [
+      ["Jersey", athlete?.jersey],
+      ["Birth Date", athlete?.dateOfBirth ? new Date(athlete.dateOfBirth).toLocaleDateString() : athlete?.displayDOB],
+      ["Debut", athlete?.debutYear],
+      ["Draft", athlete?.draft?.displayText ?? athlete?.draft?.selection],
+      ["Hand", athlete?.hand?.displayValue ?? athlete?.hand],
+      ["Reach", athlete?.displayReach ?? athlete?.reach],
+      ["Stance", athlete?.stance?.displayName ?? athlete?.stance],
+    ].map(([label, value]) => [label, textValue(value)]).filter(([, value]) => value),
   };
 }
 
@@ -86,6 +89,26 @@ function normalizeStatRows(raw: any): StatRow[] {
 }
 
 function normalizeStatCategories(data: any): StatCategory[] {
+  const statBlock = data?.statistics ?? data?.stats ?? data;
+  const labels = statBlock?.labels ?? statBlock?.displayNames;
+  const splits = statBlock?.splits;
+  if (Array.isArray(labels) && Array.isArray(splits)) {
+    return splits
+      .map((split: any) => {
+        const values = split?.stats ?? split?.values ?? [];
+        return {
+          name: split?.displayName ?? split?.name ?? split?.season?.displayName ?? "Stats",
+          rows: labels
+            .map((label: string, idx: number) => ({
+              name: statBlock?.displayNames?.[idx] ?? label,
+              value: values?.[idx] != null ? String(values[idx]) : "",
+            }))
+            .filter((row: StatRow) => row.name || row.value),
+        };
+      })
+      .filter((cat: StatCategory) => cat.rows.length > 0);
+  }
+
   const categories =
     data?.categories ??
     data?.stats?.categories ??
@@ -95,7 +118,12 @@ function normalizeStatCategories(data: any): StatCategory[] {
   if (!Array.isArray(categories)) return [];
   return categories.map((cat: any) => ({
     name: cat?.displayName ?? cat?.name ?? "Stats",
-    rows: normalizeStatRows(cat?.stats ?? cat?.statistics ?? cat?.items ?? []),
+    rows: Array.isArray(cat?.labels) && Array.isArray(cat?.totals)
+      ? cat.labels.map((label: string, idx: number) => ({
+          name: cat?.displayNames?.[idx] ?? label,
+          value: cat.totals?.[idx] != null ? String(cat.totals[idx]) : "",
+        }))
+      : normalizeStatRows(cat?.stats ?? cat?.statistics ?? cat?.items ?? []),
   }));
 }
 
@@ -159,9 +187,9 @@ export default function AthleteDetail() {
         setLoading(true);
         setError(null);
         const [overviewRes, statsRes, gamelogRes] = await Promise.all([
-          fetch(`/api/espn/athlete/${sportKey}/${athleteId}/overview`),
-          fetch(`/api/espn/athlete/${sportKey}/${athleteId}/stats`),
-          fetch(`/api/espn/athlete/${sportKey}/${athleteId}/gamelog`),
+          fetchDirectEspnApi(`/api/espn/athlete/${sportKey}/${athleteId}/overview`),
+          fetchDirectEspnApi(`/api/espn/athlete/${sportKey}/${athleteId}/stats`),
+          fetchDirectEspnApi(`/api/espn/athlete/${sportKey}/${athleteId}/gamelog`),
         ]);
         if (!mounted) return;
         if (overviewRes.ok) setOverview(await overviewRes.json());
@@ -181,18 +209,26 @@ export default function AthleteDetail() {
 
   const bio = useMemo(() => normalizeAthleteBio(overview, sportKey), [overview, sportKey]);
   const statCategories = useMemo(() => {
+    const fromStats = normalizeStatCategories(sportKey === "ufc" ? stats?.splits ?? stats : stats);
+    const hasRows = fromStats.some((cat) => cat.rows.length > 0);
+    if (hasRows) return fromStats;
+    const fromOverview = normalizeStatCategories(overview?.statistics ?? overview?.stats ?? overview);
+    if (fromOverview.some((cat) => cat.rows.length > 0)) return fromOverview;
     if (sportKey === "ufc") {
-      return normalizeStatCategories(stats?.splits ?? stats);
+      return fromStats;
     }
-    return normalizeStatCategories(stats);
-  }, [stats, sportKey]);
+    return fromStats;
+  }, [overview, stats, sportKey]);
   const splitCategories = useMemo(() => {
     if (sportKey === "ufc") {
       return [];
     }
     return normalizeStatCategories(stats?.splits ?? stats?.statistics?.splits ?? {});
   }, [stats, sportKey]);
-  const gamelogRows = useMemo(() => normalizeGameLog(gamelog), [gamelog]);
+  const gamelogRows = useMemo(() => {
+    const fromLog = normalizeGameLog(gamelog);
+    return fromLog.length ? fromLog : normalizeGameLog(overview?.gameLog ?? overview?.gamelog ?? overview);
+  }, [gamelog, overview]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -205,7 +241,14 @@ export default function AthleteDetail() {
           </Link>
           <div className="flex items-center gap-4 mt-4">
             {bio.headshot ? (
-              <img src={bio.headshot} alt="" className="h-20 w-20 rounded-full object-cover" />
+              <img
+                src={bio.headshot}
+                alt=""
+                className="h-20 w-20 rounded-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
             ) : (
               <div className="h-20 w-20 rounded-full bg-secondary/20" />
             )}
@@ -255,6 +298,11 @@ export default function AthleteDetail() {
                   {bio.experience && <div><span className="text-muted-foreground">Experience:</span> {bio.experience}</div>}
                   {bio.birthPlace && <div><span className="text-muted-foreground">Birthplace:</span> {bio.birthPlace}</div>}
                   {bio.college && <div><span className="text-muted-foreground">College:</span> {bio.college}</div>}
+                  {bio.facts.map(([label, value]) => (
+                    <div key={label}>
+                      <span className="text-muted-foreground">{label}:</span> {String(value)}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

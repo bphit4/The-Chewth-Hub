@@ -2,7 +2,7 @@
 // Keeps API key server-side and provides caching
 import path from "path";
 import { promises as fs } from "fs";
-import { NCAAF_CONFERENCES } from "./data/ncaafConferences";
+import { NCAAF_CONFERENCES, type NcaafDivisionKey } from "./data/ncaafConferences";
 
 const API_KEY = process.env.SPORTSDATA_API_KEY;
 const BASE_URL = "https://api.sportsdata.io/v3";
@@ -754,7 +754,11 @@ export async function getEspnTeamsScrape(
     return cached.data;
   }
 
-  if (sport === "ncaaf" && NCAAF_CONFERENCES[division]) {
+  const ncaafDivision = (["fbs", "fcs", "d2", "d3"] as const).includes(division as NcaafDivisionKey)
+    ? (division as NcaafDivisionKey)
+    : null;
+
+  if (sport === "ncaaf" && ncaafDivision && NCAAF_CONFERENCES[ncaafDivision]) {
     const urls: string[] = [];
     if (division === "fbs") urls.push("https://www.espn.com/college-football/teams");
     if (division === "fcs") urls.push("https://www.espn.com/college-football/teams/_/group/81");
@@ -800,7 +804,7 @@ export async function getEspnTeamsScrape(
     }
 
     const teamLookup = new Map<string, ScrapedTeam>([...apiTeamMap, ...htmlTeamMap]);
-    const staticGroups = NCAAF_CONFERENCES[division];
+    const staticGroups = NCAAF_CONFERENCES[ncaafDivision];
     const staticNameSet = new Set(staticGroups.map((g) => g.name.toLowerCase()));
 
     const groups = [];

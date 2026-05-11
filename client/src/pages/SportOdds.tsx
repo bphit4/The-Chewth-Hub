@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi, hydrateEspnScoreboardOdds } from "@/lib/espnDirect";
 import { getNcaafFallbackWeeks, parseCalendarWeeks, formatEtYyyyMmDd, formatUtcYyyyMmDd, type WeekEntry } from "@/lib/espnCalendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -37,16 +38,33 @@ function normalizeOdds(data: any): OddsRow[] {
   for (const e of events) {
     const comp = e?.competitions?.[0];
     const odds = comp?.odds?.[0];
-    const homeLine = odds?.homeTeamOdds?.moneyLine ?? odds?.homeTeamOdds?.moneyline;
-    const awayLine = odds?.awayTeamOdds?.moneyLine ?? odds?.awayTeamOdds?.moneyline;
+    const current = odds?.current ?? {};
+    const homeLine =
+      odds?.homeTeamOdds?.moneyLine ??
+      odds?.homeTeamOdds?.moneyline ??
+      odds?.homeTeamOdds?.current?.moneyLine?.alternateDisplayValue ??
+      odds?.homeTeamOdds?.current?.moneyLine?.american;
+    const awayLine =
+      odds?.awayTeamOdds?.moneyLine ??
+      odds?.awayTeamOdds?.moneyline ??
+      odds?.awayTeamOdds?.current?.moneyLine?.alternateDisplayValue ??
+      odds?.awayTeamOdds?.current?.moneyLine?.american;
+    const total =
+      odds?.overUnder ??
+      current?.total?.alternateDisplayValue ??
+      current?.total?.american;
+    const spread =
+      odds?.spread ??
+      odds?.homeTeamOdds?.current?.pointSpread?.alternateDisplayValue ??
+      odds?.awayTeamOdds?.current?.pointSpread?.alternateDisplayValue;
     rows.push({
       id: String(e?.id ?? comp?.id ?? Math.random()),
       label: e?.name ?? "",
       status: e?.status?.type?.shortDetail ?? "",
       provider: odds?.provider?.name ?? "Odds",
       details: odds?.details ?? "",
-      overUnder: odds?.overUnder ? String(odds.overUnder) : undefined,
-      spread: odds?.spread ? String(odds.spread) : undefined,
+      overUnder: total != null && total !== "" ? String(total) : undefined,
+      spread: spread != null && spread !== "" ? String(spread) : undefined,
       moneylineHome: homeLine != null ? String(homeLine) : undefined,
       moneylineAway: awayLine != null ? String(awayLine) : undefined,
       date: e?.date,
@@ -83,9 +101,9 @@ export default function SportOdds() {
     let mounted = true;
     async function loadCalendar() {
       try {
-        const res = await fetch(`/api/espn/calendar/${sportKey}`);
+        const res = await fetchDirectEspnApi(`/api/espn/calendar/${sportKey}`);
         if (!res.ok) return;
-        const json = await res.json();
+        const json = await hydrateEspnScoreboardOdds(await res.json(), sportKey);
         let parsed = parseCalendarWeeks(json);
         if (sportKey === "ncaaf" && parsed.length === 0) parsed = getNcaafFallbackWeeks();
         if (!mounted) return;
@@ -128,7 +146,7 @@ export default function SportOdds() {
           dateStr = formatEtYyyyMmDd(selectedDate);
         }
         const sourceParam = isWeekBasedSport && selectedEndDate ? "" : "&source=cdn";
-        const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${sourceParam}`);
+        const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${sourceParam}`);
         if (!res.ok) throw new Error(`Failed to fetch odds (${res.status})`);
         const json = await res.json();
         if (isWeekBasedSport && selectedEndDate) {

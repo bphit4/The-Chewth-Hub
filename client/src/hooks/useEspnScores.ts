@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSportConfig, type ChewthGame, type EspnSportKey } from "@/lib/espn";
 import { formatEtYyyyMmDd, formatUtcYyyyMmDd } from "@/lib/espnCalendar";
+import { fetchDirectEspnScoreboard } from "@/lib/espnDirect";
 
 function getTeamLogo(team: any, sportKey?: string, competitor?: any): string | undefined {
   if (!team) {
@@ -43,6 +44,9 @@ function normalizeEspnScoreboard(data: any, sportKey?: string): ChewthGame[] {
       const n = event.notes.find((n: any) => n?.type === 'event');
       headline = n?.headline;
     }
+    const odds = comp?.odds?.find((item: any) => item?.details || item?.overUnder || item?.spread);
+    const broadcast = comp?.broadcasts?.[0]?.names?.join(", ") ?? comp?.broadcast ?? event?.broadcast;
+    const venue = comp?.venue?.fullName ?? comp?.venue?.name;
 
     return {
       id: event?.id ?? "",
@@ -57,6 +61,7 @@ function normalizeEspnScoreboard(data: any, sportKey?: string): ChewthGame[] {
         score: parseInt(home?.score ?? "0", 10) || 0,
         rank: home?.curatedRank?.current ?? home?.rank ?? undefined,
         conferenceId: home?.team?.conferenceId,
+        record: home?.records?.[0]?.summary,
       },
       away: {
         id: away?.team?.id ?? "",
@@ -66,11 +71,17 @@ function normalizeEspnScoreboard(data: any, sportKey?: string): ChewthGame[] {
         score: parseInt(away?.score ?? "0", 10) || 0,
         rank: away?.curatedRank?.current ?? away?.rank ?? undefined,
         conferenceId: away?.team?.conferenceId,
+        record: away?.records?.[0]?.summary,
       },
       groups: Array.isArray(event?.competitions?.[0]?.groups) 
         ? event.competitions[0].groups.map((g: any) => g?.id) 
         : [],
       headline,
+      period: event?.status?.period ?? comp?.status?.period,
+      clock: event?.status?.displayClock ?? comp?.status?.displayClock,
+      venue,
+      broadcast,
+      odds: odds?.details ?? (odds?.overUnder != null ? `O/U ${odds.overUnder}` : undefined),
     };
   });
 }
@@ -83,20 +94,12 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter
 
   // Prefer ESPN CDN for single-day scoreboards (faster live updates) — never for UFC or NCAAF "all" (NCAAF all uses server merge of FBS+FCS)
   if (!endDate && !filter && sportKey !== "ufc" && sportKey !== "ncaaf") {
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}&source=cdn`);
-    if (!res.ok) {
-      throw new Error(`ESPN API error: ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await fetchDirectEspnScoreboard({ sport: sportKey, date: dateStr, source: "cdn" });
     return normalizeEspnScoreboard(data, sportKey);
   }
   // NCAAF single-day "all": use site API so server returns merged FBS+FCS
   if (!endDate && sportKey === "ncaaf" && !filter) {
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
-    if (!res.ok) {
-      throw new Error(`ESPN API error: ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await fetchDirectEspnScoreboard({ sport: sportKey, date: dateStr });
     return normalizeEspnScoreboard(data, sportKey);
   }
   
@@ -112,11 +115,12 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter
       }
     }
     const seasonParam = seasontype !== undefined ? `&seasontype=${seasontype}` : "";
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${groupParam}${seasonParam}`);
-    if (!res.ok) {
-      throw new Error(`ESPN API error: ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await fetchDirectEspnScoreboard({
+      sport: sportKey,
+      date: dateStr,
+      groups: groupParam ? groupParam.replace("&groups=", "") : undefined,
+      seasontype,
+    });
     // Respect week boundary: ESPN calendar ends at e.g. 06:59 UTC; API date range is inclusive by day,
     // so exclude games that start after the week's end (e.g. HOF week ends Aug 7 06:59, Preseason Week 1 starts Aug 7 07:00+)
     const events = data?.events ?? [];
@@ -151,21 +155,17 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter
       groupParam = `&groups=${confId}`;
     }
     
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${groupParam}`);
-    if (!res.ok) {
-      throw new Error(`ESPN API error: ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await fetchDirectEspnScoreboard({
+      sport: sportKey,
+      date: dateStr,
+      groups: groupParam ? groupParam.replace("&groups=", "") : undefined,
+    });
     return normalizeEspnScoreboard(data, sportKey);
   }
   
   // For college sports without filter, use ESPN scoreboard (more reliable)
   if (sportKey === "ncaaf" || sportKey === "ncaab") {
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}&source=cdn`);
-    if (!res.ok) {
-      throw new Error(`ESPN API error: ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await fetchDirectEspnScoreboard({ sport: sportKey, date: dateStr, source: "cdn" });
     const games = normalizeEspnScoreboard(data, sportKey);
     
     // Client-side filter for Top 25
@@ -181,21 +181,17 @@ async function fetchScoresFromBackend(sportKey: EspnSportKey, date: Date, filter
   
   // For UFC, use ESPN MMA hub directly
   if (sportKey === "ufc") {
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}`);
-    if (!res.ok) {
-      throw new Error(`ESPN API error: ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await fetchDirectEspnScoreboard({ sport: sportKey, date: dateStr });
     return normalizeEspnScoreboard(data, sportKey);
   }
 
   // All other scores: use ESPN (no SportsData.io key required)
   const sourceParam = endDate ? "" : "&source=cdn";
-  const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dateStr}${sourceParam}`);
-  if (!res.ok) {
-    throw new Error(`ESPN API error: ${res.status}`);
-  }
-  const data = await res.json();
+  const data = await fetchDirectEspnScoreboard({
+    sport: sportKey,
+    date: dateStr,
+    source: sourceParam ? "cdn" : undefined,
+  });
   return normalizeEspnScoreboard(data, sportKey);
 }
 

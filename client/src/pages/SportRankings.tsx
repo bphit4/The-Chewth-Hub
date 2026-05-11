@@ -5,6 +5,7 @@ import { SportSubnav } from "@/components/sports/SportSubnav";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
 
 const sportKeys = SPORTS.map((s) => s.key);
 function isSportKey(v: any): v is EspnSportKey {
@@ -138,7 +139,7 @@ export default function SportRankings() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/espn/rankings/${sportKey}`);
+        const res = await fetchDirectEspnApi(`/api/espn/rankings/${sportKey}`);
         if (!res.ok) throw new Error(`Failed to fetch rankings (${res.status})`);
         const json = await res.json();
         if (mounted) setData(json);

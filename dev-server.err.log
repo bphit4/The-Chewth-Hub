@@ -1,0 +1,5 @@
+⚠️  SPORTSDATA_API_KEY not set. Scores use ESPN; SportsData.io is optional for standings/stats.
+Internal Server Error: Error: ESPN API error: 404 Not Found
+    at fetchEspn (C:\Users\Shadow\Desktop\Coding\The-Chewth-Hub-main\server\sportsdata.ts:156:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\Shadow\Desktop\Coding\The-Chewth-Hub-main\server\routes.ts:386:20)

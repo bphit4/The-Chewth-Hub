@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { fetchDirectEspnScoreboard } from "@/lib/espnDirect";
+import type { EspnSportKey } from "@/lib/espn";
 
 interface Score {
   id: string;
@@ -32,8 +34,7 @@ export function ScoreTicker() {
                   : league === "mlb"
                     ? "mlb"
                     : "ufc";
-            const res = await fetch(`/api/espn/scoreboard/${path}`);
-            const data = await res.json();
+            const data = await fetchDirectEspnScoreboard({ sport: path as EspnSportKey });
 
             const events = Array.isArray(data?.events) ? data.events : [];
             return events.map((event: any) => {

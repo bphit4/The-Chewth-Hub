@@ -6,10 +6,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-const sportKeys = SPORTS.map((s) => s.key);
+const sportKeys: readonly string[] = SPORTS.map((s) => s.key);
 function isSportKey(v: unknown): v is EspnSportKey {
   return typeof v === "string" && sportKeys.includes(v);
 }
@@ -44,6 +45,39 @@ const CONFERENCE_ORDER = [
   "Independent",
   "Other",
 ];
+
+const PRO_DIVISIONS: Record<string, Record<string, string>> = {
+  nfl: {
+    BUF: "AFC East", MIA: "AFC East", NE: "AFC East", NYJ: "AFC East",
+    BAL: "AFC North", CIN: "AFC North", CLE: "AFC North", PIT: "AFC North",
+    HOU: "AFC South", IND: "AFC South", JAX: "AFC South", TEN: "AFC South",
+    DEN: "AFC West", KC: "AFC West", LV: "AFC West", LAC: "AFC West",
+    DAL: "NFC East", NYG: "NFC East", PHI: "NFC East", WSH: "NFC East",
+    CHI: "NFC North", DET: "NFC North", GB: "NFC North", MIN: "NFC North",
+    ATL: "NFC South", CAR: "NFC South", NO: "NFC South", TB: "NFC South",
+    ARI: "NFC West", LAR: "NFC West", SF: "NFC West", SEA: "NFC West",
+  },
+  nba: {
+    BOS: "Atlantic", BKN: "Atlantic", NY: "Atlantic", PHI: "Atlantic", TOR: "Atlantic",
+    CHI: "Central", CLE: "Central", DET: "Central", IND: "Central", MIL: "Central",
+    ATL: "Southeast", CHA: "Southeast", MIA: "Southeast", ORL: "Southeast", WSH: "Southeast",
+    DEN: "Northwest", MIN: "Northwest", OKC: "Northwest", POR: "Northwest", UTAH: "Northwest", UTA: "Northwest",
+    GS: "Pacific", LAC: "Pacific", LAL: "Pacific", PHX: "Pacific", SAC: "Pacific",
+    DAL: "Southwest", HOU: "Southwest", MEM: "Southwest", NO: "Southwest", SA: "Southwest",
+  },
+  mlb: {
+    BAL: "AL East", BOS: "AL East", NYY: "AL East", TB: "AL East", TOR: "AL East",
+    CHW: "AL Central", CWS: "AL Central", CLE: "AL Central", DET: "AL Central", KC: "AL Central", MIN: "AL Central",
+    HOU: "AL West", LAA: "AL West", ATH: "AL West", OAK: "AL West", SEA: "AL West", TEX: "AL West",
+    ATL: "NL East", MIA: "NL East", NYM: "NL East", PHI: "NL East", WSH: "NL East",
+    CHC: "NL Central", CIN: "NL Central", MIL: "NL Central", PIT: "NL Central", STL: "NL Central",
+    ARI: "NL West", COL: "NL West", LAD: "NL West", SD: "NL West", SF: "NL West",
+  },
+};
+
+function getProDivision(sportKey: string, abbr: string) {
+  return PRO_DIVISIONS[sportKey]?.[abbr] ?? "Other";
+}
 
 /** Get conference name from team object (ESPN uses various shapes). */
 function getConferenceName(team: any): string {
@@ -205,6 +239,44 @@ function normalizeNcaabStandings(data: any): ConferenceGroup[] {
   return groups.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function normalizeProStandings(data: any, sportKey: EspnSportKey): ConferenceGroup[] {
+  const conferences = Array.isArray(data?.children) ? data.children : [];
+  const groups: ConferenceGroup[] = [];
+
+  for (const conference of conferences) {
+    const entries = conference?.standings?.entries ?? [];
+    if (!Array.isArray(entries)) continue;
+    const divisions = new Map<string, TeamData[]>();
+
+    for (const entry of entries) {
+      const t = entry?.team;
+      if (!t?.id) continue;
+      const abbr = t.abbreviation ?? "";
+      const division = getProDivision(sportKey, abbr);
+      const team: TeamData = {
+        id: String(t.id),
+        name: t.displayName ?? t.name ?? "",
+        abbr,
+        logo: t.logos?.[0]?.href ?? t.logo,
+        color: t.color ? `#${t.color}` : undefined,
+        conference: conference?.shortName ?? conference?.name ?? "",
+        division,
+      };
+      if (!divisions.has(division)) divisions.set(division, []);
+      divisions.get(division)!.push(team);
+    }
+
+    for (const [division, teams] of divisions.entries()) {
+      groups.push({
+        name: `${conference?.shortName ?? conference?.name ?? "Conference"} / ${division}`,
+        teams: teams.sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    }
+  }
+
+  return groups.length ? groups : [];
+}
+
 export default function SportTeams() {
   const [match, params] = useRoute("/sport/:sport/teams");
   const sport = params?.sport;
@@ -228,7 +300,7 @@ export default function SportTeams() {
   useEffect(() => {
     let mounted = true;
     async function fetchJson(url: string) {
-      const res = await fetch(url);
+      const res = await fetchDirectEspnApi(url);
       const text = await res.text();
       try {
         return { ok: res.ok, data: JSON.parse(text) };
@@ -267,7 +339,7 @@ export default function SportTeams() {
             if (mounted) setData(json);
           }
         } else {
-          const { ok, data } = await fetchJson(`/api/espn/teams/${sportKey}`);
+          const { ok, data } = await fetchJson(`/api/espn/standings/${sportKey}`);
           if (!ok) throw new Error(data?.error ?? "Failed to fetch teams");
           const json = data;
           if (mounted) setData(json);
@@ -294,6 +366,8 @@ export default function SportTeams() {
       }
       return normalizeTeamsByConference(data, sportKey, requestedDivision);
     }
+    const proGroups = normalizeProStandings(data, sportKey);
+    if (proGroups.length) return proGroups;
     const teams = normalizeTeamsFlat(data);
     return teams.length ? [{ name: "All Teams", teams }] : [];
   }, [data, sportKey, requestedDivision]);

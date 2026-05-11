@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SPORTS, type EspnSportKey, getSportConfig } from "@/lib/espn";
+import { fetchDirectEspnApi } from "@/lib/espnDirect";
+import { espnHeadshotPng } from "@/lib/espnImages";
 import { getNcaafFallbackWeeks, ncaafSeasonYear, parseCalendarWeeks, formatUtcYyyyMmDd, formatEtYyyyMmDd, type WeekEntry } from "@/lib/espnCalendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -95,7 +97,7 @@ async function findAdjacentGameDate(
         rangeEnd.setDate(rangeEnd.getDate() - offset);
         rangeStart.setDate(rangeStart.getDate() - Math.min(offset + step - 1, max));
       }
-      const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
+      const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
       if (!res.ok) continue;
       const json = await res.json();
       const events = json?.events ?? [];
@@ -129,7 +131,7 @@ async function findNextGameDate(sportKey: EspnSportKey, startDate: Date): Promis
     rangeStart.setDate(rangeStart.getDate() + offset);
     const rangeEnd = new Date(base);
     rangeEnd.setDate(rangeEnd.getDate() + Math.min(offset + step - 1, maxForward));
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
+    const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
     if (!res.ok) continue;
     const json = await res.json();
     const events = json?.events ?? [];
@@ -147,7 +149,7 @@ async function findNextGameDate(sportKey: EspnSportKey, startDate: Date): Promis
     rangeEnd.setDate(rangeEnd.getDate() - offset);
     const rangeStart = new Date(base);
     rangeStart.setDate(rangeStart.getDate() - Math.min(offset + step - 1, maxBackward));
-    const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
+    const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?dates=${buildDateRange(rangeStart, rangeEnd)}`);
     if (!res.ok) continue;
     const json = await res.json();
     const events = json?.events ?? [];
@@ -226,7 +228,7 @@ function normalizeMmaEvents(data: any): Array<{
   venue?: string;
   location?: string;
   broadcast?: string;
-  fights: Array<{ id: string; weightClass?: string; fighters: Array<{ name?: string }> }>;
+  fights: Array<{ id: string; weightClass?: string; fighters: Array<{ id?: string; name?: string; headshot?: string; flag?: string }> }>;
 }> {
   const events = data?.events ?? [];
   if (!Array.isArray(events)) return [];
@@ -244,8 +246,18 @@ function normalizeMmaEvents(data: any): Array<{
         id: String(c?.id ?? ""),
         weightClass: c?.type?.abbreviation ?? c?.type?.displayName,
         fighters: [
-          { name: away?.athlete?.displayName ?? away?.athlete?.shortName },
-          { name: home?.athlete?.displayName ?? home?.athlete?.shortName },
+          {
+            id: away?.athlete?.id != null ? String(away.athlete.id) : undefined,
+            name: away?.athlete?.displayName ?? away?.athlete?.shortName,
+            headshot: away?.athlete?.headshot?.href ?? espnHeadshotPng("ufc", away?.athlete?.id),
+            flag: away?.athlete?.flag?.href,
+          },
+          {
+            id: home?.athlete?.id != null ? String(home.athlete.id) : undefined,
+            name: home?.athlete?.displayName ?? home?.athlete?.shortName,
+            headshot: home?.athlete?.headshot?.href ?? espnHeadshotPng("ufc", home?.athlete?.id),
+            flag: home?.athlete?.flag?.href,
+          },
         ],
       };
     });
@@ -351,7 +363,7 @@ export default function SportSchedule() {
       try {
         setMmaScheduleLoading(true);
         setMmaScheduleError(null);
-        const res = await fetch(`/api/espn/mma/schedule`);
+        const res = await fetchDirectEspnApi(`/api/espn/mma/schedule`);
         if (!res.ok) throw new Error(`Failed to fetch MMA schedule (${res.status})`);
         const json = await res.json();
         if (mounted) setMmaSchedule(json);
@@ -372,7 +384,7 @@ export default function SportSchedule() {
     async function loadCalendar() {
       try {
         const yearParam = sportKey === "ncaaf" ? `?year=${ncaafSeasonYear()}` : "";
-        const res = await fetch(`/api/espn/calendar/${sportKey}${yearParam}`);
+        const res = await fetchDirectEspnApi(`/api/espn/calendar/${sportKey}${yearParam}`);
         let parsed: WeekEntry[] = [];
         if (res.ok) {
           const json = await res.json();
@@ -427,7 +439,7 @@ export default function SportSchedule() {
         try {
           setLoading(true);
           setError(null);
-          const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dates}`);
+          const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?dates=${dates}`);
           if (!res.ok) throw new Error(`Failed to fetch MMA schedule (${res.status})`);
           const json = await res.json();
           const events = json?.events ?? [];
@@ -470,7 +482,7 @@ export default function SportSchedule() {
               groupParam = `&groups=${confId}`;
             }
           }
-          const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${startStr}-${endStr}${groupParam}${seasonParam}`);
+          const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?dates=${startStr}-${endStr}${groupParam}${seasonParam}`);
           if (!res.ok) throw new Error(`Failed to fetch schedule (${res.status})`);
           const json = await res.json();
           const weekEndMs = selectedEndDate.getTime();
@@ -500,7 +512,7 @@ export default function SportSchedule() {
               groupParam = `&groups=${confId}`;
             }
           }
-          const res = await fetch(`/api/espn/scoreboard/${sportKey}?dates=${dates}${groupParam}`);
+          const res = await fetchDirectEspnApi(`/api/espn/scoreboard/${sportKey}?dates=${dates}${groupParam}`);
           if (!res.ok) throw new Error(`Failed to fetch schedule (${res.status})`);
           const json = await res.json();
           const events = json?.events ?? [];
@@ -568,7 +580,7 @@ export default function SportSchedule() {
     let mounted = true;
     async function loadConferences() {
       try {
-        const res = await fetch(`/api/espn/groups/${sportKey}`);
+        const res = await fetchDirectEspnApi(`/api/espn/groups/${sportKey}`);
         if (res.ok) {
           const json = await res.json();
           const groups = json?.groups ?? json?.children ?? [];
@@ -1031,8 +1043,14 @@ export default function SportSchedule() {
                         {e.fights.slice(0, 6).map((f) => (
                           <div key={f.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
+                              {f.fighters[0]?.headshot ? (
+                                <img src={f.fighters[0].headshot} alt="" className="h-6 w-6 rounded-full object-cover" />
+                              ) : null}
                               <span className="font-semibold">{f.fighters[0]?.name || "TBD"}</span>
                               <span className="text-muted-foreground text-xs">vs</span>
+                              {f.fighters[1]?.headshot ? (
+                                <img src={f.fighters[1].headshot} alt="" className="h-6 w-6 rounded-full object-cover" />
+                              ) : null}
                               <span className="font-semibold">{f.fighters[1]?.name || "TBD"}</span>
                             </div>
                             <span className="text-xs text-muted-foreground">{f.weightClass || "—"}</span>
